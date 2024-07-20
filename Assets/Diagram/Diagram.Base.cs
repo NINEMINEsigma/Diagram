@@ -78,6 +78,12 @@ namespace Diagram
         public _NotSupport_Attribute(Type type) { this.type = type; }
     }
 
+    [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
+    public sealed class _Init_Attribute : Attribute
+    {
+        public _Init_Attribute() { }
+    }
+
 #pragma warning restore IDE1006 // 命名样式
 
     #endregion
@@ -4542,6 +4548,11 @@ namespace Diagram
 
     public static class ContainerExtension
     {
+        public static object[] ToObjectArray(this object self)
+        {
+            return new object[1] { self };
+        }
+
         public static List<P> GetSubList<T, P>(this List<T> self) where P : class
         {
             List<P> result = new();
@@ -5026,14 +5037,44 @@ namespace Diagram
 
 namespace Diagram
 {
+    [Serializable]
+    public class ArchitectureException : DiagramException
+    {
+        public ArchitectureException(string message) : base(message) { }
+        public ArchitectureException(string message, Exception inner) : base(message, inner) { }
+        [Serializable]
+        public class Exist : ArchitectureException
+        {
+            public Exist() : base("Target Class/Typename Is Exist") { }
+        }
+        [Serializable]
+        public class NotExist : ArchitectureException
+        {
+            public NotExist() : base("Target Class/Typename Is Not Exist") { }
+        }
+        [Serializable]
+        public class WrongType : ArchitectureException
+        {
+            public WrongType() : base("Not the desired type") { }
+        }
+    }
+
+    public interface ICommand
+    {
+        void Invoke();
+    }
+
     public class BaseWrapper
     {
         private object arch_ontology = null;
         internal object Ontology => arch_ontology;
+        public bool IsRegisterCallback { get; protected set; } = false;
         public BaseWrapper(object arch_ontology)
         {
             this.arch_ontology = arch_ontology;
         }
+
+        public Architecture Arch { get; protected set; } = null;
 
         public override bool Equals(object obj)
         {
@@ -5054,7 +5095,8 @@ namespace Diagram
 
         public class Architecture : BaseWrapper
         {
-            public List<BaseWrapper> Components = new();
+            internal Dictionary<Type, BaseWrapper> Components = new();
+            internal Dictionary<BaseWrapper, Dictionary<Type, bool>> DependenciesLater = new();
             public Architecture(object arch) : base(arch)
             {
                 arch.TryRunMethodByName("OnArchitectureInit", out object _, DefaultBindingFlags);
@@ -5071,6 +5113,230 @@ namespace Diagram
             {
                 return this.Ontology.GetType() == obj.GetType();
             }
+
+            #region Register
+            /// <summary>
+            /// CallBack Timing: dependencies is all registered
+            /// <list type="bullet">Core Method: <b>void OnDependencyCompleting()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public Architecture Register<T>(BaseWrapper target, params Type[] dependences) where T : class
+            {
+                return Register(typeof(T), target, dependences.ToList());
+            }
+            /// <summary>
+            /// CallBack Timing: dependencies is all registered
+            /// <list type="bullet">Core Method: <b>void OnDependencyCompleting()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public Architecture Register<T>(BaseWrapper target, List<Type> dependences) where T : class
+            {
+                return Register(typeof(T), target, dependences);
+            }
+            /// <summary>
+            /// CallBack Timing: dependencies is all registered
+            /// <list type="bullet">Core Method: <b>void OnDependencyCompleting()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public Architecture Register(Type type, BaseWrapper target, params Type[] dependences)
+            {
+                return Register(type, target, dependences.ToList());
+            }
+            /// <summary>
+            /// CallBack Timing: dependencies is all registered
+            /// <list type="bullet">Core Method: <b>void OnDependencyCompleting()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public Architecture Register(Type type, BaseWrapper target, List<Type> dependences)
+            {
+                if (Components.ContainsKey(type)) throw new ArchitectureException.Exist();
+                target.Arch = this;
+                Components.Add(type, target);
+                DependenciesLater.Add(target, new Dictionary<Type, bool>().Share(out var dic));
+                foreach (var item in dependences)
+                {
+                    dic.Add(item, Components.ContainsKey(item));
+                }
+                ToolDetectRegisteredsDependence((Dictionary<Type, bool> dic) =>
+                {
+                    if (dic.ContainsKey(type))
+                        dic[type] = true;
+                });
+                return this;
+            }
+            /// <summary>
+            /// CallBack Timing: now
+            /// <para>Side Effect: DependenciesLater.Remove(target)</para>
+            /// <list type="bullet">Core Method: <b>void OnDependencyCompleting()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            protected Architecture RegisterWithCallback(BaseWrapper target)
+            {
+                DependenciesLater.Remove(target);
+                target.TryRunMethodByName("OnDependencyCompleting", out object _, DefaultBindingFlags);
+                target.IsRegisterCallback = true;
+                target.TryRunMethodByName("OnInit", out object _, DefaultBindingFlags);
+                return this;
+            }
+            /// <summary>
+            /// Detect Stats Change Just Now
+            /// </summary>
+            private void ToolDetectRegisteredsDependence(Action<Dictionary<Type, bool>> action)
+            {
+                List<BaseWrapper> result = new();
+                //found targets
+                foreach (var dependence in DependenciesLater)
+                {
+                    action(dependence.Value);
+                    bool stats = true;
+                    foreach (var types in dependence.Value)
+                    {
+                        stats = stats & types.Value;
+                        if (!stats) break;
+                    }
+                    if (stats) result.Add(dependence.Key);
+                }
+                //call back
+                foreach (var target in result)
+                {
+                    RegisterWithCallback(target);
+                }
+                if (result.Count != 0) ToolDetectRegisteredsDependence();
+            }
+            /// <summary>
+            /// Detect Stats Change Just Now
+            /// </summary>
+            private void ToolDetectRegisteredsDependence()
+            {
+                List<BaseWrapper> result = new();
+                //found targets
+                foreach (var dependence in DependenciesLater)
+                {
+                    bool stats = true;
+                    foreach (var types in dependence.Value)
+                    {
+                        stats = stats & types.Value;
+                        if (!stats) break;
+                    }
+                    if (stats) result.Add(dependence.Key);
+                }
+                //call back
+                foreach (var target in result)
+                {
+                    RegisterWithCallback(target);
+                }
+                if (result.Count != 0) ToolDetectRegisteredsDependence();
+            }
+            #endregion
+
+            #region Unregister
+            /// <summary>
+            /// CallBack Timing: now
+            /// <list type="bullet">Core Method: <b>void OnDependencyReleasing()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public Architecture Unregister(params Type[] types)
+            {
+                foreach (var type in types)
+                {
+                    Unregister(type);
+                }
+                return this;
+            }
+            /// <summary>
+            /// CallBack Timing: now
+            /// <list type="bullet">Core Method: <b>void OnDependencyReleasing()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public Architecture Unregister<T>() where T : class
+            {
+                return Unregister(typeof(T));
+            }
+            /// <summary>
+            /// CallBack Timing: now
+            /// <list type="bullet">Core Method: <b>void OnDependencyReleasing()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public Architecture Unregister(Type type)
+            {
+                if (!Components.TryGetValue(type, out var wrapper)) throw new ArchitectureException.NotExist();
+                if (!DependenciesLater.ContainsKey(Components[type]))
+                {
+                    UnregisterWithCallback(wrapper);
+                }
+                wrapper.Arch = null;
+                Components.Remove(type);
+                DependenciesLater.Remove(wrapper);
+                foreach (var dependence in DependenciesLater)
+                {
+                    if (dependence.Value.ContainsKey(type))
+                        dependence.Value[type] = false;
+                }
+                return this;
+            }
+            /// <summary>
+            /// CallBack Timing: now
+            /// <list type="bullet">Core Method: <b>void OnDependencyReleasing()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            protected Architecture UnregisterWithCallback(BaseWrapper target)
+            {
+                DependenciesLater.Remove(target);
+                target.TryRunMethodByName("OnDependencyReleasing", out object _, DefaultBindingFlags);
+                target.IsRegisterCallback = false;
+                return this;
+            }
+            #endregion
+
+            #region Obtain
+
+            public System GetSystem<T>() where T : class => GetComponent<System>(typeof(T));
+            public System GetSystem(Type type) => GetComponent<System>(type);
+            public Model GetModel<T>() where T : class => GetComponent<Model>(typeof(T));
+            public Model GetModel(Type type) => GetComponent<Model>(type);
+            public Controller GetController<T>() where T : class => GetComponent<Controller>(typeof(T));
+            public Controller GetController(Type type) => GetComponent<Controller>(type);
+            public bool Contains(Type type) => Components.ContainsKey(type);
+
+            private T GetComponent<T>(Type type) where T : BaseWrapper
+            {
+                return Components.TryGetValue(type, out var cat) ? cat as T : null;
+            }
+
+            #endregion
+
+            #region Diff
+
+            public Architecture Diffusing(Type type)
+            {
+                if (Components.TryGetValue(type, out var temp))
+                {
+                    if (temp is ICommand command)
+                    {
+                        command.Invoke();
+                    }
+                    foreach (var component in Components)
+                    {
+                        component.Value.ListenToCommand(type, this);
+                    }
+                }
+                else throw new ArchitectureException.WrongType();
+                return this;
+            }
+            public Architecture SendCommand(Type type)
+            {
+                if (Components.TryGetValue(type, out var temp))
+                {
+                    if (temp is ICommand command)
+                    {
+                        command.Invoke();
+                    }
+                }
+                else throw new ArchitectureException.WrongType();
+                return this;
+            }
+
+            #endregion
         }
         public class System : BaseWrapper
         {
@@ -5085,20 +5351,21 @@ namespace Diagram
             {
 
             }
+
+            public void Init()
+            {
+                if (!this.Ontology.TryRunMethodByName("Init", out object _, DefaultBindingFlags))
+                    this.Ontology.TryRunMethodByName("OnInit", out object _, DefaultBindingFlags);
+            }
         }
         /// <summary>
-        /// use "On"+command type's name to call controller's defined method, like <b>void OnCommand(Architecture arch)</b> is the which type: "Command" want to call
+        /// use "On"+command type's name to call controller's defined method, like <b>void OnCommand()</b> is the which type: "Command" want to call
         /// </summary>
         public class Controller : BaseWrapper
         {
-            private Dictionary<Type, Action<object, object>> listenCommands;
+            private Dictionary<Type, Action> listenCommands;
 
-            /// <summary>
-            /// 
-            /// </summary>
-            /// <param name="controller"></param>
-            /// <param name="commands"><controller,arch></param>
-            public Controller(object controller, Dictionary<Type, Action<object, object>> commands) : base(controller)
+            public Controller(object controller, Dictionary<Type, Action> commands) : base(controller)
             {
                 this.listenCommands = commands;
             }
@@ -5107,9 +5374,9 @@ namespace Diagram
             {
                 if (this.listenCommands.TryGetValue(type, out var action))
                 {
-                    action.Invoke(this.arch_ontology, arch);
+                    action.Invoke();
                 }
-                this.arch_ontology.TryRunMethodByName("On" + type.Name, out object _, ReflectionExtension.DefaultBindingFlags, arch);
+                this.arch_ontology.TryRunMethodByName("On" + type.Name, out object _, DefaultBindingFlags);
             }
         }
 
@@ -5118,8 +5385,10 @@ namespace Diagram
         {
             this.ListenToCommand(typeof(_Command), arch);
         }
-
-
+        public T To<T>() where T : class
+        {
+            return this.Ontology as T;
+        }
     }
 
     public class ObserveEachOther
@@ -5130,7 +5399,7 @@ namespace Diagram
     [UnityEngine.Scripting.Preserve]
     public static class ArchitectureDiagram
     {
-        private readonly static System.Collections.Generic.Dictionary<Type,BaseWrapper.Architecture> AllArchs = new();
+        private readonly static System.Collections.Generic.Dictionary<Type, BaseWrapper.Architecture> AllArchs = new();
         public static void OnInit()
         {
             AllArchs.Clear();
@@ -5150,7 +5419,7 @@ namespace Diagram
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="arch"></param>
-        public static BaseWrapper.Architecture RegisterArchitecture(Type type,object arch)
+        public static BaseWrapper.Architecture RegisterArchitecture(Type type, object arch)
         {
             AllArchs.Add(type, new BaseWrapper.Architecture(arch).Share(out var result));
             return result;
@@ -5173,17 +5442,136 @@ namespace Diagram
         /// <param name="arch"></param>
         public static void UnregisterArchitecture(Type type)
         {
-            if (AllArchs.Remove(type))
-                throw new DiagramException("Target Architecture is not found");
+            if (!AllArchs.Remove(type))
+                throw new ArchitectureException.NotExist();
         }
 
+        /// <summary>
+        /// Get Target Architecture with <see cref="BaseWrapper.Architecture"/>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="self"></param>
+        /// <returns></returns>
         public static BaseWrapper.Architecture Architecture<T>(this object self) where T : class
         {
             return Architecture(self, typeof(T));
         }
-        public static BaseWrapper.Architecture Architecture(this object self,Type type)
+        /// <summary>
+        /// Get Target Architecture with <see cref="BaseWrapper.Architecture"/>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="self"></param>
+        /// <returns></returns>
+        public static BaseWrapper.Architecture Architecture(this object self, Type type)
         {
-            return AllArchs[type];
+            if (AllArchs.ContainsKey(type)) return AllArchs[type];
+            else throw new ArchitectureException.NotExist();
+        }
+        /// <summary>
+        /// Get Target Architecture with <see cref="BaseWrapper.Architecture"/>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="self"></param>
+        /// <returns></returns>
+        public static BaseWrapper.Architecture Architecture(Type type)
+        {
+            if (AllArchs.ContainsKey(type)) return AllArchs[type];
+            else throw new ArchitectureException.NotExist();
+        }
+
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.System RegisterSystemOn<T, Arch>(this T self, params Type[] dependences) where T : class where Arch : class
+        {
+            return RegisterSystemOn(self, typeof(T), typeof(Arch), dependences);
+        }
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.System RegisterSystemOn<T>(this T self, Type archType, params Type[] dependences) where T : class
+        {
+            return RegisterSystemOn(self, typeof(T), archType, dependences);
+        }
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.System RegisterSystemOn(this object self, Type type, Type archType, params Type[] dependences)
+        {
+            Architecture(archType).Register(type, new BaseWrapper.System(self).Share(out var result), dependences);
+            return result;
+        }
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.Architecture RegisterSystem(this BaseWrapper.Architecture self, Type type, object target, params Type[] dependences)
+        {
+            return self.Register(type, new BaseWrapper.System(self), dependences);
+        }
+
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.Model RegisterModelOn<T, Arch>(this T self, params Type[] dependences) where T : class where Arch : class
+        {
+            return RegisterModelOn(self, typeof(T), typeof(Arch), dependences);
+        }
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.Model RegisterModelOn<T>(this T self, Type archType, params Type[] dependences) where T : class
+        {
+            return RegisterModelOn(self, typeof(T), archType, dependences);
+        }
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.Model RegisterModelOn(this object self, Type type, Type archType, params Type[] dependences)
+        {
+            Architecture(archType).Register(type, new BaseWrapper.Model(self).Share(out var result), dependences);
+            return result;
+        }
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.Architecture RegisterModel(this BaseWrapper.Architecture self, Type type, object target, params Type[] dependences)
+        {
+            return self.Register(type, new BaseWrapper.Model(self), dependences);
+        }
+
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.Controller RegisterControllerOn<T, Arch>(this T self, Dictionary<Type, Action> commandsCallback, params Type[] dependences) where T : class where Arch : class
+        {
+            return RegisterControllerOn(self, typeof(T), typeof(Arch), commandsCallback, dependences);
+        }
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.Controller RegisterControllerOn<T>(this T self, Type archType, Dictionary<Type, Action> commandsCallback, params Type[] dependences) where T : class
+        {
+            return RegisterControllerOn(self, typeof(T), archType, commandsCallback, dependences);
+        }
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.Controller RegisterControllerOn(this object self, Type type, Type archType, Dictionary<Type, Action> commandsCallback, params Type[] dependences)
+        {
+            Architecture(archType).Register(type, new BaseWrapper.Controller(self, commandsCallback ?? new()).Share(out var result), dependences);
+            return result;
+        }
+        /// <summary>
+        /// This type triggers a registration callback only when all registrations are dependent
+        /// </summary>
+        public static BaseWrapper.Architecture RegisterController(this BaseWrapper.Architecture self, Type type, object target, Dictionary<Type, Action> commandsCallback, params Type[] dependences)
+        {
+            return self.Register(type, new BaseWrapper.Controller(self, commandsCallback ?? new()), dependences);
+        }
+
+        public static bool Contains(this Type arch,Type type)
+        {
+            return Architecture(arch).Contains(type);
         }
     }
 }
