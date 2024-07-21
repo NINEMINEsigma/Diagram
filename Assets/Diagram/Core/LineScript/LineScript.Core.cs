@@ -1,7 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
-using System.IO; 
-using UnityEditor.AssetImporters;
+using System.IO;
 using UnityEngine;
 
 namespace Diagram
@@ -21,14 +19,39 @@ namespace Diagram
     [System.Serializable]
     public class ParseException : LineScriptException
     {
-        public ParseException(string message) : base("Bad Parse: " + message) { }
+        public ParseException() : base("Bad Parse") { }
+        public ParseException(string message) : base("Bad Parse->" + message) { }
+        public ParseException(string message,string word) : base("Bad Parse->" + message) { this.word = word; }
+        public string word;
     }
 
     public class LineScript
     {
         #region env
+        public Dictionary<string, object> MainUsingInstances = new();
         public Dictionary<string, object> CreatedInstances = new();
+        public Dictionary<string, SymbolWord> CreatedSymbols = new();
         #endregion
+
+        /// <summary>
+        /// Add a sub <see cref="LineScript"/> core
+        /// </summary>
+        /// <param name="core"></param>
+        public void SubLineScript(LineScript core)
+        {
+            foreach (var item in core.MainUsingInstances)
+            {
+                this.MainUsingInstances.TryAdd(item.Key, item.Value);
+            }
+            foreach (var item in core.CreatedInstances)
+            {
+                this.CreatedInstances.TryAdd(item.Key, item.Value);
+            }
+            foreach (var item in core.CreatedSymbols)
+            {
+                this.CreatedSymbols.TryAdd(item.Key, item.Value);
+            }
+        }
 
         public void Run(LineScriptAssets ls)
         {
@@ -40,80 +63,127 @@ namespace Diagram
         }
         private void CoreRun(string[] ls)
         {
-            foreach (var line in ls)
+            for (int i = 0; i < ls.Length; i++)
             {
+                string line = ls[i];
                 List<string> words = new();
                 string current = "";
-                bool isnot_in_literal_value = false;
-                bool isnot_skip = false;
+                bool isnot_in_literal_value = true;
+                bool isnot_in_argslist = true;
+                bool isnot_skip = true;
                 foreach (var ch in line)
                 {
                     switch (ch)
                     {
-                        case ' ' when isnot_in_literal_value&& isnot_skip:
+                        case ' ' when isnot_in_literal_value && isnot_in_argslist && isnot_skip:
                             {
                                 if (current.Length != 0)
                                     words.Add(current);
                                 current = "";
                             }
                             break;
-                        case '\"' when isnot_in_literal_value&& isnot_skip:
+                        case ',' when isnot_in_literal_value && isnot_in_argslist == false && isnot_skip:
                             {
-                                isnot_in_literal_value = true;
-                                current += '\"';
+                                if (current.Length != 0)
+                                    words.Add(current);
+                                current = "";
                             }
                             break;
-                        case '\"' when isnot_in_literal_value==false && isnot_skip:
+                        case '\"' when isnot_in_literal_value /*&& isnot_in_argslist*/ && isnot_skip:
                             {
                                 isnot_in_literal_value = false;
                                 current += '\"';
                             }
                             break;
-                        case '\\' when isnot_in_literal_value==false && isnot_skip:
+                        case '\"' when isnot_in_literal_value == false /*&& isnot_in_argslist*/ && isnot_skip:
                             {
-                                isnot_skip = true;
-                                current += '\\';
+                                isnot_in_literal_value = true;
+                                current += '\"';
+                            }
+                            break;
+                        case '\\' when isnot_in_literal_value == false && isnot_in_argslist && isnot_skip:
+                            {
+                                isnot_skip = false;
+                                //current += '\\';
+                            }
+                            break;
+                        case '(' when isnot_in_literal_value && isnot_in_argslist && isnot_skip:
+                            {
+                                isnot_in_argslist = false;
+                                if (current.Length != 0)
+                                    words.Add(current);
+                                current = "";
+                            }
+                            break;
+                        case ')' when isnot_in_literal_value && isnot_in_argslist == false && isnot_skip:
+                            {
+                                isnot_in_argslist = true;
+                                if (current.Length != 0)
+                                    words.Add(current);
+                                current = "";
                             }
                             break;
                         default:
                             current += ch;
-                            isnot_skip = false;
+                            isnot_skip = true;
                             break;
                     }
                 }
                 if (current.Length > 0) words.Add(current);
-                CoreLineParse(words.ToArray());
+                CoreLineParse(i, words.ToArray());
             }
         }
-        private void CoreLineParse(string[] words)
+        private void CoreLineParse(int lineindex,string[] words)
         {
+            if(words.Length>0)
+            {
+                if (words[0].Length > 0 && words[0].StartsWith("//")) return;
+                words[0] = words[0].TrimStart(' ');
+                words[^1] = words[^1].TrimEnd(' ', '\r');
+            }
             if (words.Length == 0) return;
             List<LineWord> LineWords = new();
             LineWord Controller = AllowFirstWord.StaticInstance;
-            foreach (var word in words)
+            for (int i = 0; i < words.Length; i++)
             {
-                LineWord lineWord = LineWord.Read(word);
+                string word = words[i];
+                if (word.Length == 0) continue;
+                LineWord lineWord = LineWord.Read(this, word);
+                bool is_need_trans_controller = true;
                 if (Controller.DetectNext(lineWord))
                 {
-                    //TODO
+                    is_need_trans_controller = Controller.ResolveToBehaviour(this, lineWord);
                 }
-                else throw new ParseException($"\"{word}\" is not allow");
-                Controller = lineWord;
+                else throw new ParseException($"On {lineindex} {i}: \"{word}\"<{lineWord.GetType().Name}> is not allow");
+                if (is_need_trans_controller) Controller = lineWord;
             }
+            Controller.ResolveToBehaviour(this,null);
         }
-        private class AllowFirstWord:LineWord
+        private class AllowFirstWord : LineWord
         {
             public override bool AllowLinkKeyWord => true;
             public override bool AllowLinkLiteralValue => true;
             public override bool AllowLinkSymbolWord => true;
             public readonly static AllowFirstWord StaticInstance = new AllowFirstWord();
         }
+
+        /// <summary>
+        /// If it's already a defined word, it is parsed as a <see cref="SymbolWord"/>, otherwise it is parsed as a <see cref="LiteralValueWord"/>
+        /// </summary>
+        public LineWord GetSymbolWord(string source)
+        {
+            if (SymbolWord.GetSymbolWord(source, out var result)) return result;
+            else if (CreatedSymbols.TryGetValue(source, out result)) return result; 
+            else if(CreatedInstances.TryGetValue(source,out var symbol)) return new ReferenceSymbolWord(source);
+            return new LiteralValueWord(source);
+        }
     }
 
-    [ScriptedImporter(2, ".ls")]
-    public class LineScriptImporter : ScriptedImporter
+#if UNITY_EDITOR
+    [UnityEditor.AssetImporters.ScriptedImporter(1, "ls")]
+    public class LineScriptImporter : UnityEditor.AssetImporters.ScriptedImporter
     {
-        public override void OnImportAsset(AssetImportContext ctx)
+        public override void OnImportAsset(UnityEditor.AssetImporters.AssetImportContext ctx)
         {
             var lineTxt = File.ReadAllText(ctx.assetPath);
 
@@ -125,12 +195,11 @@ namespace Diagram
             ctx.SetMainObject(assetsText);
         }
     }
+#endif
 
     public class LineScriptAssets : TextAsset
     {
         public LineScriptAssets() : base("") { }
         public LineScriptAssets(string lines) : base(lines) { }
-
-
     }
 }

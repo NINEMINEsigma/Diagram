@@ -1,21 +1,20 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using Newtonsoft.Json;
+using System.Numerics;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Security.Cryptography;
+using Newtonsoft.Json;
 using Unity.VisualScripting;
 using UnityEngine;
-using System.Runtime.InteropServices;
 using UnityEngine.Events;
 using UnityEngine.Networking;
-using System.Security.Cryptography;
-using System.Reflection;
-using System.Collections.ObjectModel;
-using System.Numerics;
-using Unity.Collections;
 using static Diagram.ReflectionExtension;
 
 namespace Diagram
@@ -1411,7 +1410,6 @@ namespace Diagram
                     return type;
                 }
             }
-
             for (int i = 0; (i < assemblyArrayLength); ++i)
             {
                 Type[] typeArray = assemblyArray[i].GetTypes();
@@ -2253,6 +2251,7 @@ namespace Diagram
         public class DiagramReflectedMethod
         {
             private MethodInfo method;
+            public MethodInfo CoreMethod { get => method; private set => method = value; }
             public int ArgsTotal { get; private set; }
 
             public static DiagramReflectedMethod Temp(Action action) => new(action, 0);
@@ -2269,47 +2268,47 @@ namespace Diagram
 
             public DiagramReflectedMethod(Delegate @delegate, int argsTotal)
             {
-                this.method = @delegate.Method;
+                this.CoreMethod = @delegate.Method;
                 this.ArgsTotal = argsTotal;
             }
 
             public DiagramReflectedMethod(MethodInfo method, int argsTotal)
             {
-                this.method = method;
+                this.CoreMethod = method;
                 ArgsTotal = argsTotal;
             }
 
             public DiagramReflectedMethod(Type type, string methodName, Type[] genericParameters, Type[] parameterTypes)
             {
                 MethodInfo nonGenericMethod = type.GetMethod(methodName, parameterTypes);
-                this.method = nonGenericMethod.MakeGenericMethod(genericParameters);
+                this.CoreMethod = nonGenericMethod.MakeGenericMethod(genericParameters);
                 ArgsTotal = parameterTypes == null ? 0 : parameterTypes.Length;
             }
 
             public DiagramReflectedMethod(Type type, string methodName, Type[] genericParameters, Type[] parameterTypes, BindingFlags bindingAttr)
             {
                 MethodInfo nonGenericMethod = type.GetMethod(methodName, bindingAttr, null, parameterTypes, null);
-                this.method = nonGenericMethod.MakeGenericMethod(genericParameters);
+                this.CoreMethod = nonGenericMethod.MakeGenericMethod(genericParameters);
                 ArgsTotal = parameterTypes == null ? 0 : parameterTypes.Length;
             }
 
             public DiagramReflectedMethod(Type type, string methodName, Type[] parameterTypes)
             {
                 MethodInfo nonGenericMethod = type.GetMethod(methodName, parameterTypes);
-                this.method = nonGenericMethod;
+                this.CoreMethod = nonGenericMethod;
                 ArgsTotal = parameterTypes == null ? 0 : parameterTypes.Length;
             }
 
             public DiagramReflectedMethod(Type type, string methodName, Type[] parameterTypes, BindingFlags bindingAttr)
             {
                 MethodInfo nonGenericMethod = type.GetMethod(methodName, bindingAttr, null, parameterTypes, null);
-                this.method = nonGenericMethod;
+                this.CoreMethod = nonGenericMethod;
                 ArgsTotal = parameterTypes == null ? 0 : parameterTypes.Length;
             }
 
             public object Invoke(object obj, object[] parameters)
             {
-                return method.Invoke(obj, parameters);
+                return CoreMethod.Invoke(obj, parameters);
             }
         }
 
@@ -2715,7 +2714,7 @@ namespace Diagram
         public bool IsError { get => isError; private set => isError = value; }
         public bool IsEmpty { get => isEmpty; private set => isEmpty = value; }
         public Exception ErrorException { get; private set; } = null;
-        public bool IsKeepToolFileontrol { get => isKeepToolFileontrol; private set => isKeepToolFileontrol = value; }
+        public bool IsKeepToolFileControl { get => isKeepToolFileControl; private set => isKeepToolFileControl = value; }
         private Stream FileStream;
         internal Stream _MyStream => FileStream;
         public byte[] FileData { get; private set; } = null;
@@ -2724,7 +2723,7 @@ namespace Diagram
         [SerializeField] private bool isDelete = false;
         [SerializeField] private bool isError = false;
         [SerializeField] private bool isEmpty = false;
-        [SerializeField] private bool isKeepToolFileontrol = false;
+        [SerializeField] private bool isKeepToolFileControl = false;
 
         public void Delete()
         {
@@ -2770,7 +2769,7 @@ namespace Diagram
             Dispose();
         }
 
-        public ToolFile(string filePath, bool isTryCreate, bool isRefresh, bool isKeepToolFileontrol)
+        public ToolFile(string filePath, bool isTryCreate, bool isRefresh, bool isKeepToolFileControl)
         {
             try
             {
@@ -2785,7 +2784,7 @@ namespace Diagram
                     return;
                 }
                 else ToolFile.CreateFile(filePath);
-                InitFileStream(isRefresh, isKeepToolFileontrol);
+                InitFileStream(isRefresh, isKeepToolFileControl);
             }
             catch (Exception ex)
             {
@@ -2816,7 +2815,7 @@ namespace Diagram
             }
         }
 
-        public ToolFile(bool isCanOverwrite, string filePath, bool isRefresh, bool isKeepToolFileontrol)
+        public ToolFile(bool isCanOverwrite, string filePath, bool isRefresh, bool isKeepToolFileControl)
         {
             try
             {
@@ -2831,7 +2830,7 @@ namespace Diagram
                 }
                 else ToolFile.CreateFile(filePath);
                 Timestamp = File.GetLastWriteTime(filePath).ToUniversalTime();
-                InitFileStream(isRefresh, isKeepToolFileontrol);
+                InitFileStream(isRefresh, isKeepToolFileControl);
             }
             catch (Exception ex)
             {
@@ -2864,7 +2863,7 @@ namespace Diagram
 
         private void InitFileStream(bool isRefresh, bool isKeepToolFileontrol)
         {
-            if (this.IsKeepToolFileontrol = isKeepToolFileontrol)
+            if (this.IsKeepToolFileControl = isKeepToolFileontrol)
             {
                 FileStream = new FileStream(FilePath, FileMode.Open, FileAccess.ReadWrite);
             }
@@ -2899,7 +2898,7 @@ namespace Diagram
         public void UpdateFileData()
         {
             if (DebugMyself()) return;
-            if (this.IsKeepToolFileontrol)
+            if (this.IsKeepToolFileControl)
             {
                 UpdateFileData(FileStream);
             }
@@ -3027,7 +3026,7 @@ namespace Diagram
             }
             try
             {
-                if (IsKeepToolFileontrol)
+                if (IsKeepToolFileControl)
                 {
                     obj = new BinaryFormatter().Deserialize(FileStream);
                 }
@@ -3068,7 +3067,7 @@ namespace Diagram
                 }
                 else
                 {
-                    if (IsKeepToolFileontrol)
+                    if (IsKeepToolFileControl)
                     {
                         this.FileData = encoding.GetBytes(JsonConvert.SerializeObject(obj, Formatting.Indented));
                         FileStream.Write(this.FileData, 0, this.FileData.Length);
@@ -3123,12 +3122,12 @@ namespace Diagram
 
         public void Close()
         {
-            if (IsKeepToolFileontrol)
+            if (IsKeepToolFileControl)
             {
                 FileStream?.Close();
                 FileStream?.Dispose();
                 FileStream = null;
-                IsKeepToolFileontrol = false;
+                IsKeepToolFileControl = false;
                 IsError = false;
                 IsEmpty = true;
             }
@@ -3137,7 +3136,7 @@ namespace Diagram
 
         public void Keep(bool isRefresh)
         {
-            if (!IsKeepToolFileontrol)
+            if (!IsKeepToolFileControl)
             {
                 Close();
                 InitFileStream(isRefresh, true);
@@ -3186,7 +3185,7 @@ namespace Diagram
             }
             try
             {
-                if (IsKeepToolFileontrol)
+                if (IsKeepToolFileControl)
                 {
                     FileStream.Write(FileData, 0, FileData.Length);
                 }
@@ -3892,6 +3891,12 @@ namespace Diagram
         public static readonly string dataPath = "";
 #else   
         public static readonly string persistentDataPath = Application.persistentDataPath;
+        public static readonly string userPath =
+#if PLATFORM_STANDALONE_WIN
+            Application.streamingAssetsPath;
+#else
+            Application.persistentDataPath;
+#endif
         public static readonly string dataPath = Application.dataPath;
 #endif
         public const string backupFileSuffix = ".bac";
