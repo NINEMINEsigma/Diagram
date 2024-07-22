@@ -1,16 +1,12 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using AD.UI;
 using AD.Utility;
 using Diagram;
-using Diagram.Collections;
-using UnityEngine;
-using UnityEngine.Events;
 using Diagram.Arithmetic;
 using Diagram.Message;
-using System.IO;
-using AD;
-using AD.UI;
+using UnityEngine;
 
 namespace Game
 {
@@ -67,6 +63,7 @@ namespace Game
             ArchitectureDiagram.UnregisterArchitecture<Minnes>();
         }
 
+        /*
         [SerializeField] private int RawPastTick = 0;
         [SerializeField] private int RawCurrentTick = 0;
         public int CurrentTick
@@ -86,7 +83,8 @@ namespace Game
         private void Update()
         {
             //if (!IsDirty) return;  
-            CurrentTick++;
+            if (ASC.CurrentClip == null) return;
+            CurrentTick = (int)(ASC.CurrentTime * (60 / ProjectBPM) * 64);
             "CurrentTick".InsertVariable(CurrentTick);
             while (RawPastTick != RawCurrentTick)
             {
@@ -96,13 +94,44 @@ namespace Game
                 }
                 RawPastTick += RawCurrentTick > RawPastTick ? 1 : -1;
             }
+        }*/
+
+        [SerializeField] private float RawPastTick = 0;
+        [SerializeField] private float RawCurrentTick = 0;
+        public float CurrentTick
+        {
+            get => RawPastTick;
+            set
+            {
+                if (RawCurrentTick != value)
+                {
+                    RawPastTick = RawCurrentTick;
+                    RawCurrentTick = value;
+                }
+            }
+        }
+        public float CurrentStats => RawCurrentTick - RawPastTick;
+        public List<MinnesController> AllControllers = new();
+        private void Update()
+        {
+            if (ASC.CurrentClip == null) return;
+            CurrentTick = ASC.CurrentTime;
+            "CurrentTick".InsertVariable(CurrentTick);
+            foreach (var item in AllControllers)
+            {
+                item.TimeUpdate(CurrentTick, CurrentStats);
+            }
+            RawPastTick = RawCurrentTick;
         }
     }
 
     [Serializable]
     public class MinnesController:MonoBehaviour
     {
-        public string MyScriptName; 
+        public string MyScriptName;
+        public float FocusTime;
+        public void SetTargetScript(string path) => MyScriptName = path;
+        public void SetFocusTime(float time) => this.FocusTime = time;
 
         public void ReloadLineScript()
         {
@@ -122,8 +151,8 @@ namespace Game
             TimeListener.Clear();
         }
 
-        public Dictionary<string,Action<int,int>> TimeListener = new();
-        public virtual void TimeUpdate(int time,int stats)
+        public Dictionary<string, Action<float, float>> TimeListener = new();
+        public virtual void TimeUpdate(float time, float stats)
         {
             foreach (var invoker in TimeListener)
             {
@@ -133,7 +162,7 @@ namespace Game
 
         public void MakeDelay(int time,string expression)
         {
-            TimeListener.Add($"Delay-{time}-{expression}", (int timex, int statsx) =>
+            TimeListener.Add($"Delay-{time}-{expression}", (float timex, float statsx) =>
             {
                 if(time==timex)
                 {
@@ -154,31 +183,31 @@ namespace Game
             this.transform.localScale = new Vector3(x,y,z);
         }
 
-        public void MakeMovement(int startTime, int endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
+        public void MakeMovement(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
         {
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(x, y, z), to = new(x2, y2, z2);
-            TimeListener.TryAdd($"Movement-{startTime}-{endTime}", (int time, int stats) =>
+            TimeListener.TryAdd($"Movement-{startTime}-{endTime}", (float time, float stats) =>
             {
                 if (time < startTime || time > endTime) return;
                 this.transform.position = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
             });
         }
-        public void MakeRotating(int startTime, int endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
+        public void MakeRotating(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
         {
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(x, y, z), to = new(x2, y2, z2);
-            TimeListener.TryAdd($"Rotating-{startTime}-{endTime}", (int time, int stats) =>
+            TimeListener.TryAdd($"Rotating-{startTime}-{endTime}", (float time, float stats) =>
             {
                 if (time < startTime || time > endTime) return;
                 this.transform.eulerAngles = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
             });
         }
-        public void MakeScale(int startTime, int endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
+        public void MakeScale(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
         {
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(x, y, z), to = new(x2, y2, z2);
-            TimeListener.TryAdd($"ScaleTransform-{startTime}-{endTime}", (int time, int stats) =>
+            TimeListener.TryAdd($"ScaleTransform-{startTime}-{endTime}", (float time, float stats) =>
             {
                 if (time < startTime || time > endTime) return;
                 this.transform.localScale = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
@@ -193,6 +222,18 @@ namespace Game
         public void LogCache(int index)
         {
             Debug.Log(new GetCache(index).message);
+        }
+    }
+
+    public class MinnesGenerater
+    {
+        public static Dictionary<string, Func<MinnesController>> GenerateAction = new();
+
+        public MinnesController target;
+
+        public MinnesGenerater(string class_name)
+        {
+            target = GenerateAction[class_name].Invoke();
         }
     }
 }

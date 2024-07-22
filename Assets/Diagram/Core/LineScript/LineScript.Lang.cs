@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Diagram.Arithmetic;
+using UnityEngine;
 
 #pragma warning disable IDE1006 // 命名样式
 
@@ -422,6 +423,40 @@ namespace Diagram
         private int counter = 0;
         private object[] constructorslist;
 
+        private bool ToolSet(int index, string strword)
+        {
+            try
+            {
+                if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(string)) this.constructorslist[index] = strword;
+                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(double)) this.constructorslist[index] = strword.Compute();
+                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(float)) this.constructorslist[index] = strword.Computef();
+                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(int)) this.constructorslist[index] = strword.Computei();
+                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(long)) this.constructorslist[index] = strword.Computel();
+                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(bool)) this.constructorslist[index] = strword != "false" && strword != "0";
+                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector4))
+                {
+                    var strs = strword.Split(',');
+                    constructorslist[index] = new Vector4(strs[0].Computef(), strs[1].Computef(), strs[2].Computef(), strs[3].Computef());
+                }
+                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector3))
+                {
+                    var strs = strword.Split(',');
+                    constructorslist[index] = new Vector3(strs[0].Computef(), strs[1].Computef(), strs[2].Computef());
+                }
+                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector2))
+                {
+                    var strs = strword.Split(',');
+                    constructorslist[index] = new Vector2(strs[0].Computef(), strs[1].Computef());
+                }
+                else return false;
+            }
+            catch
+            {
+                return false;
+            }
+            return true;
+        }
+
         public override bool ResolveToBehaviour(LineScript core, LineWord next)
         {
             //if(AnyFunctional==null)
@@ -440,24 +475,14 @@ namespace Diagram
                         else if (core.CreatedInstances.TryGetValue(symbol.source, out object inst)) constructorslist[index] = inst;
                         else if (core.CreatedSymbols.TryGetValue(symbol.source, out var in_symbolWord))
                         {
-                            if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(string)) constructorslist[index] = in_symbolWord.source;
-                            else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(double)) constructorslist[index] = in_symbolWord.source.Compute();
-                            else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(float)) constructorslist[index] = in_symbolWord.source.Computef();
-                            else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(int)) constructorslist[index] = in_symbolWord.source.Computei();
-                            else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(long)) constructorslist[index] = in_symbolWord.source.Computel();
-                            else if (core.MainUsingInstances.TryGetValue(in_symbolWord.source, out object main2)) constructorslist[index] = main2;
+                            if (core.MainUsingInstances.TryGetValue(in_symbolWord.source, out object main2)) constructorslist[index] = main2;
                             else if (core.CreatedInstances.TryGetValue(in_symbolWord.source, out object inst2)) constructorslist[index] = inst2;
-                            else break;
+                            if (ToolSet(index, symbol.source) == false) break;
                         }
                     }
                     else if (next is LiteralValueWord literal)
                     {
-                        if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(string)) constructorslist[index] = literal.source;
-                        else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(double)) constructorslist[index] = literal.source.Compute();
-                        else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(float)) constructorslist[index] = literal.source.Computef();
-                        else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(int)) constructorslist[index] = literal.source.Computei();
-                        else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(long)) constructorslist[index] = literal.source.Computel();
-                        else break;
+                        if (ToolSet(index, literal.source) == false) break;
                     }
                     else break;
                     counter++;
