@@ -3,69 +3,196 @@ using System.Collections;
 using System.Collections.Generic;
 using AD.Utility;
 using Diagram;
+using Diagram.Collections;
 using UnityEngine;
 using UnityEngine.Events;
+using Diagram.Arithmetic;
+using Diagram.Message;
+using System.IO;
+using AD;
+using AD.UI;
 
 namespace Game
 {
-    [Serializable]
-    public class TimeEvent:UnityEvent
-    {
-        public int FocusTime;
-        public override int GetHashCode()
-        {
-            return FocusTime;
-        }
-    }
-
     public class Minnes : MonoBehaviour
     {
+        public void SetSpeed(float speed) => ProjectSpeed = speed;
+        public AudioSourceController ASC;
+        public void LoadSong(string song)
+        {
+            ASC.LoadOnUrl(song, AudioSourceController.GetAudioType(song), true);
+        }
+        public void SetBPM(float bpm) => ProjectBPM = bpm;
+        public void SetProject(string projectName) => ProjectName = projectName;
+        public void Log(string message)
+        {
+            Debug.Log(message);
+        }
+        public void LogCache(int index)
+        {
+            Debug.Log(new GetCache(index).message);
+        }
+
+        public static string ProjectName = "Test";
+        public static float ProjectBPM = 60;
+        public static float ProjectSpeed = 1;
+        public static Minnes MinnesInstance;
+
+        public class StartRuntimeCommand { }
+        public List<MinnesController> EnableContronller = new();
+
         private void Awake()
         {
             ArchitectureDiagram.RegisterArchitecture(this);
-            CurrentTick = 0;
+            MinnesInstance = this;
         }
-
-        private static int RawCurrentTick;
-        public static int CurrentTick
+        private void Start()
         {
-            get => RawCurrentTick;
-            set
+            this.Architecture<Minnes>().Register<StartRuntimeCommand>(new BaseWrapper.Model(new StartRuntimeCommand()));
             {
-                RawCurrentTick = value;
+                using ToolFile file = new(Path.Combine(ToolFile.userPath, "Config.ls"), true, true, false);
+                new LineScript(("this", this)).Run(file.GetString(false, System.Text.Encoding.UTF8));
+            }
+            {
+                using ToolFile projectFile = new(Path.Combine(ToolFile.userPath, ProjectName, "Minnes.ls"), true, true, false);
+                new LineScript(("this", this)).Run(projectFile.GetString(false, System.Text.Encoding.UTF8));
+            }
+            foreach (var item in EnableContronller)
+            {
+                item.gameObject.SetActive(true);
             }
         }
-        public List<TimeEvent> TimeEvents = new();
-        public int TimePointer;
+        private void OnDestroy()
+        {
+            ArchitectureDiagram.UnregisterArchitecture<Minnes>();
+        }
+
+        [SerializeField] private int RawPastTick = 0;
+        [SerializeField] private int RawCurrentTick = 0;
+        public int CurrentTick
+        {
+            get => RawPastTick;
+            set
+            {
+                if (RawCurrentTick != value)
+                {
+                    RawPastTick = RawCurrentTick;
+                    RawCurrentTick = value;
+                }
+            }
+        }
+        public int CurrentStats => RawCurrentTick - RawPastTick;
+        public List<MinnesController> AllControllers = new();
+        private void Update()
+        {
+            //if (!IsDirty) return;  
+            CurrentTick++;
+            "CurrentTick".InsertVariable(CurrentTick);
+            while (RawPastTick != RawCurrentTick)
+            {
+                foreach (var item in AllControllers)
+                {
+                    item.TimeUpdate(CurrentTick, CurrentStats);
+                }
+                RawPastTick += RawCurrentTick > RawPastTick ? 1 : -1;
+            }
+        }
     }
 
+    [Serializable]
     public class MinnesController:MonoBehaviour
     {
-        public void SetPosition(float x,float y,float z)
+        public string MyScriptName; 
+
+        public void ReloadLineScript()
+        {
+            if (MyScriptName.Length == 0) return;
+            LineScript core = new(("this", this));
+            using ToolFile file = new(Path.Combine(ToolFile.userPath, Minnes.ProjectName, MyScriptName), true, true, false);
+            core.Run(file.GetString(false, System.Text.Encoding.UTF8));
+        }
+
+        virtual protected void OnEnable()
+        {
+            ReloadLineScript();
+        }
+
+        virtual protected void OnDisable()
+        {
+            TimeListener.Clear();
+        }
+
+        public Dictionary<string,Action<int,int>> TimeListener = new();
+        public virtual void TimeUpdate(int time,int stats)
+        {
+            foreach (var invoker in TimeListener)
+            {
+                invoker.Value(time, stats);
+            }
+        }
+
+        public void MakeDelay(int time,string expression)
+        {
+            TimeListener.Add($"Delay-{time}-{expression}", (int timex, int statsx) =>
+            {
+                if(time==timex)
+                {
+                    new LineScript(("this", this), ("time", timex), ("stats", statsx)).Run(expression);
+                }
+            });
+        }
+        public void InitPosition(float x,float y,float z)
         {
             this.transform.position = new Vector3(x, y, z);
         }
-
-        public void SetRotation(float x,float y,float z)
+        public void InitRotation(float x,float y,float z)
         {
             this.transform.eulerAngles = new Vector3(x,y,z);
         }
-
-        public void SetScale(float x,float y,float z)
+        public void InitScale(float x,float y,float z)
         {
             this.transform.localScale = new Vector3(x,y,z);
         }
 
-
-        public void Movement(int startTime, int endTime, float x, float y, float z, float x2, float y2, float z2, int easeType = 0)
+        public void MakeMovement(int startTime, int endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
         {
-            EaseCurveType ease = (EaseCurveType)easeType;
-
+            var eCurve = new EaseCurve((EaseCurveType)easeType);
+            Vector3 from = new(x, y, z), to = new(x2, y2, z2);
+            TimeListener.TryAdd($"Movement-{startTime}-{endTime}", (int time, int stats) =>
+            {
+                if (time < startTime || time > endTime) return;
+                this.transform.position = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
+            });
+        }
+        public void MakeRotating(int startTime, int endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
+        {
+            var eCurve = new EaseCurve((EaseCurveType)easeType);
+            Vector3 from = new(x, y, z), to = new(x2, y2, z2);
+            TimeListener.TryAdd($"Rotating-{startTime}-{endTime}", (int time, int stats) =>
+            {
+                if (time < startTime || time > endTime) return;
+                this.transform.eulerAngles = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
+            });
+        }
+        public void MakeScale(int startTime, int endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
+        {
+            var eCurve = new EaseCurve((EaseCurveType)easeType);
+            Vector3 from = new(x, y, z), to = new(x2, y2, z2);
+            TimeListener.TryAdd($"ScaleTransform-{startTime}-{endTime}", (int time, int stats) =>
+            {
+                if (time < startTime || time > endTime) return;
+                this.transform.localScale = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
+            });
         }
 
-        virtual protected void Update()
+        public void Log(string message)
         {
-                
+            Debug.Log(message);
+        }
+
+        public void LogCache(int index)
+        {
+            Debug.Log(new GetCache(index).message);
         }
     }
 }

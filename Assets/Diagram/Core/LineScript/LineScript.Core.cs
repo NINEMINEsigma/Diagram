@@ -27,6 +27,14 @@ namespace Diagram
 
     public class LineScript
     {
+        public LineScript(params (string, object)[] createdInstances)
+        {
+            foreach (var item in createdInstances)
+            {
+                CreatedInstances.TryAdd(item.Item1, item.Item2);
+            }
+        }
+
         #region env
         public Dictionary<string, object> MainUsingInstances = new();
         public Dictionary<string, object> CreatedInstances = new();

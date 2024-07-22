@@ -1,8 +1,8 @@
 using System.Collections;
-using System.Collections.Generic;
 using System.IO;
-using System.Threading.Tasks;
+using Diagram.Message;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Diagram
 {
@@ -89,6 +89,16 @@ namespace Diagram
         public void Version(int mainv, int subv, int minv)
         {
             Debug.Log($"Version: {mainv}.{subv}.{minv}");
+        }
+
+        public void ToScene(string scenename)
+        {
+            SceneManager.LoadScene(scenename);
+        }
+
+        public void Cache(string message)
+        {
+            new AddCache(message);
         }
     }
 }

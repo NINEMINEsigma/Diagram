@@ -16,6 +16,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
 using static Diagram.ReflectionExtension;
+using Debug = UnityEngine.Debug;
 
 namespace Diagram
 {
@@ -117,6 +118,19 @@ namespace Diagram
             DiagramType.AddType(type, this);
             this.type = type;
             this.IsValueType = ReflectionExtension.IsValueType(type);
+        }
+
+        public DiagramMember GetMember(string name)
+        {
+            foreach (var member in members)
+            {
+                if(member.name == name) return member;
+            }
+            foreach (var member in cycleMembers)
+            {
+                if (member.name == name) return member;
+            }
+            return null;
         }
 
         #endregion
@@ -2316,21 +2330,21 @@ namespace Diagram
         {
             foreach (CustomAttributeData cad in attributes)
             {
-                Debug.Log("   " + cad);
-                Debug.Log("      Constructor: '" + cad.Constructor + "'");
+                UnityEngine.Debug.Log("   " + cad);
+                UnityEngine.Debug.Log("      Constructor: '" + cad.Constructor + "'");
 
-                Debug.Log("      Constructor arguments:");
+                UnityEngine.Debug.Log("      Constructor arguments:");
                 foreach (CustomAttributeTypedArgument cata
                     in cad.ConstructorArguments)
                 {
                     _ShowValueOrArray(cata);
                 }
 
-                Debug.Log("      Named arguments:");
+                UnityEngine.Debug.Log("      Named arguments:");
                 foreach (CustomAttributeNamedArgument cana
                     in cad.NamedArguments)
                 {
-                    Debug.Log("         MemberInfo: '" + cana.MemberInfo + "'");
+                    UnityEngine.Debug.Log("         MemberInfo: '" + cana.MemberInfo + "'");
                     _ShowValueOrArray(cana.TypedValue);
                 }
             }
@@ -2340,7 +2354,7 @@ namespace Diagram
         {
             if (cata.Value.GetType() == typeof(ReadOnlyCollection<CustomAttributeTypedArgument>))
             {
-                Debug.Log("         Array of '" + cata.ArgumentType + "':");
+                UnityEngine.Debug.Log("         Array of '" + cata.ArgumentType + "':");
 
                 foreach (CustomAttributeTypedArgument cataElement in
                     (ReadOnlyCollection<CustomAttributeTypedArgument>)cata.Value)
@@ -4933,110 +4947,6 @@ namespace Diagram
         }
     }
 
-    [System.Serializable]
-    public class DiagramSerializableDictionary<TKey, TVal> : Dictionary<TKey, TVal>, ISerializationCallbackReceiver //where TKey : class
-    {
-        [Serializable]
-        class Entry
-        {
-            public Entry() { }
-
-            public Entry(TKey key, TVal value)
-            {
-                Key = key;
-                Value = value;
-            }
-
-            public TKey Key;
-            public TVal Value;
-        }
-
-        [SerializeField, JsonIgnore]
-        private List<Entry> Data;
-
-        public UnityEvent<TKey> OnAdd = new(), OnTryAdd = new(), OnRemove = new();
-        public UnityEvent<TKey, bool> OnReplace = new();
-
-        public virtual void OnBeforeSerialize()
-        {
-            Data = new();
-            foreach (KeyValuePair<TKey, TVal> pair in this)
-            {
-                try
-                {
-                    Data.Add(new Entry(pair.Key, pair.Value));
-                }
-                catch { }
-            }
-        }
-
-        // load dictionary from lists
-        public virtual void OnAfterDeserialize()
-        {
-            if (Data == null) return;
-            base.Clear();
-            for (int i = 0; i < Data.Count; i++)
-            {
-                if (Data[i] != null)
-                {
-                    if (!base.TryAdd(Data[i].Key, Data[i].Value))
-                    {
-                        Type typeTkey = typeof(TKey);
-                        if (typeTkey == typeof(string)) (this as Dictionary<string, TVal>).Add("New Key", default);
-                        else if (typeTkey.IsSubclassOf(typeof(object))) base.Add(default, default);
-                        else if (ReflectionExtension.IsPrimitive(typeTkey)) base.Add(default, default);
-                    }
-                }
-            }
-
-            Data = null;
-        }
-
-        public int RemoveNullValues()
-        {
-            var nullKeys = this.Where(pair => pair.Value == null)
-                .Select(pair => pair.Key)
-                .ToList();
-            foreach (var nullKey in nullKeys)
-                base.Remove(nullKey);
-            return nullKeys.Count;
-        }
-
-        public new void Add(TKey key, TVal value)
-        {
-            base.Add(key, value);
-            OnAdd.Invoke(key);
-        }
-
-        public new bool TryAdd(TKey key, TVal value)
-        {
-            bool result = base.TryAdd(key, value);
-            OnTryAdd.Invoke(key);
-            return result;
-        }
-
-        public new bool Remove(TKey key)
-        {
-            bool result = base.Remove(key);
-            OnRemove.Invoke(key);
-            return result;
-        }
-
-        public new TVal this[TKey key]
-        {
-            get
-            {
-                return base[key];
-            }
-            set
-            {
-                var result = base.ContainsKey(key);
-                base[key] = value;
-                this.OnReplace.Invoke(key, result);
-            }
-        }
-    }
-
     #endregion
 }
 
@@ -5105,6 +5015,7 @@ namespace Diagram
             public Architecture(object arch) : base(arch)
             {
                 arch.TryRunMethodByName("OnArchitectureInit", out object _, DefaultBindingFlags);
+                this.Arch = this;
             }
             ~Architecture()
             {
@@ -5178,9 +5089,9 @@ namespace Diagram
             protected Architecture RegisterWithCallback(BaseWrapper target)
             {
                 DependenciesLater.Remove(target);
-                target.TryRunMethodByName("OnDependencyCompleting", out object _, DefaultBindingFlags);
+                target.TryRunMethodByName("OnDependencyCompleting", out object _, AllBindingFlags);
                 target.IsRegisterCallback = true;
-                target.TryRunMethodByName("OnInit", out object _, DefaultBindingFlags);
+                target.TryRunMethodByName("OnInit", out object _, AllBindingFlags);
                 return this;
             }
             /// <summary>
@@ -5577,6 +5488,445 @@ namespace Diagram
         public static bool Contains(this Type arch,Type type)
         {
             return Architecture(arch).Contains(type);
+        }
+    }
+}
+
+namespace Diagram.Collections
+{
+    [System.Serializable]
+    public class SerializableDictionary<TKey, TVal> : Dictionary<TKey, TVal>, ISerializationCallbackReceiver
+    {
+        [Serializable]
+        class Entry
+        {
+            public Entry() { }
+
+            public Entry(TKey key, TVal value)
+            {
+                Key = key;
+                Value = value;
+            }
+
+            public TKey Key;
+            public TVal Value;
+        }
+
+        [SerializeField, JsonIgnore]
+        private List<Entry> Data;
+
+        public UnityEvent<TKey> OnAdd = new(), OnTryAdd = new(), OnRemove = new();
+        public UnityEvent<TKey, bool> OnReplace = new();
+
+        public virtual void OnBeforeSerialize()
+        {
+            Data = new();
+            foreach (KeyValuePair<TKey, TVal> pair in this)
+            {
+                try
+                {
+                    Data.Add(new Entry(pair.Key, pair.Value));
+                }
+                catch { }
+            }
+        }
+
+        // load dictionary from lists
+        public virtual void OnAfterDeserialize()
+        {
+            if (Data == null) return;
+            base.Clear();
+            for (int i = 0; i < Data.Count; i++)
+            {
+                if (Data[i] != null)
+                {
+                    if (!base.TryAdd(Data[i].Key, Data[i].Value))
+                    {
+                        Type typeTkey = typeof(TKey);
+                        if (typeTkey == typeof(string)) (this as Dictionary<string, TVal>).Add("New Key", default);
+                        else if (typeTkey.IsSubclassOf(typeof(object))) base.Add(default, default);
+                        else if (ReflectionExtension.IsPrimitive(typeTkey)) base.Add(default, default);
+                    }
+                }
+            }
+
+            Data = null;
+        }
+
+        public int RemoveNullValues()
+        {
+            var nullKeys = this.Where(pair => pair.Value == null)
+                .Select(pair => pair.Key)
+                .ToList();
+            foreach (var nullKey in nullKeys)
+                base.Remove(nullKey);
+            return nullKeys.Count;
+        }
+
+        public new void Add(TKey key, TVal value)
+        {
+            base.Add(key, value);
+            OnAdd.Invoke(key);
+        }
+
+        public new bool TryAdd(TKey key, TVal value)
+        {
+            bool result = base.TryAdd(key, value);
+            OnTryAdd.Invoke(key);
+            return result;
+        }
+
+        public new bool Remove(TKey key)
+        {
+            bool result = base.Remove(key);
+            OnRemove.Invoke(key);
+            return result;
+        }
+
+        public new TVal this[TKey key]
+        {
+            get
+            {
+                return base[key];
+            }
+            set
+            {
+                var result = base.ContainsKey(key);
+                base[key] = value;
+                this.OnReplace.Invoke(key, result);
+            }
+        }
+    }
+
+    [System.Serializable]
+    public class SegmentTree
+    {
+        public class Node
+        {
+            public int left;
+            public int right;
+            public Node leftchild;
+            public Node rightchild;
+            public int Sum;
+            public int Min;
+            public int Max;
+        }
+
+        private Node nodeTree = new Node();
+        private int[] nums;
+         
+        /// <summary>
+        /// Buildup by new datas
+        /// </summary>
+        /// <returns>Tree's root</returns>
+        public Node Build(int[] nums)
+        {
+            this.nums = nums;
+            return Build(nodeTree, 0, nums.Length - 1);
+        } 
+        /// <summary>
+        /// Buildup by nums's data to a new node
+        /// </summary>
+        /// <param name="left">Using nums's left boundary</param>
+        /// <param name="right">Using nums's right boundary</param>
+        /// <returns>node or new one node</returns>
+        public Node Build(Node node, int left, int right)
+        {
+            //Indicating that it has reached the root, the max, sum, and min values of the current node
+            //(counting the values of the previous node interval during backtracking)
+            if (left == right)
+            {
+                return new Node
+                {
+                    left = left,
+                    right = right,
+                    Max = nums[left],
+                    Min = nums[left],
+                    Sum = nums[left]
+                };
+            }
+            //value init
+            if (node == null) node = new Node(); 
+            node.left = left;
+            node.right = right;
+            node.leftchild = Build(node.leftchild, left, (left + right) / 2);
+            node.rightchild = Build(node.rightchild, (left + right) / 2 + 1, right);
+            //count value
+            node.Min = Math.Min(node.leftchild.Min, node.rightchild.Min);
+            node.Max = Math.Max(node.leftchild.Max, node.rightchild.Max);
+            node.Sum = node.leftchild.Sum + node.rightchild.Sum;
+
+            return node;
+        }
+
+        public int Query(int left, int right)
+        { 
+            return Query(nodeTree, left, right); 
+        }
+        public int Query(Node node, int left, int right)
+        {
+            int sum = 0;
+            return Query(node, left, right, ref sum);
+        }
+        public int Query(Node node, int left, int right,ref int sum)
+        { 
+            if (left <= node.left && right >= node.right)
+            {
+                sum += node.Sum;
+                return sum;
+            }
+            else
+            {
+                if (node.left > right || node.right < left) return sum;
+                var middle = (node.left + node.right) / 2;
+
+                if (left <= middle)
+                {
+                    Query(node.leftchild, left, right, ref sum);
+                }
+                if (right >= middle)
+                {
+                    Query(node.rightchild, left, right, ref sum);
+                }
+                return sum;
+            }
+        }
+         
+        public void Update(int index, int key)
+        {
+            Update(nodeTree, index, key);
+        }
+        public void Update(Node node, int index, int key)
+        {
+            if (node == null) return;
+            var middle = (node.left + node.right) / 2;
+            if (index >= node.left && index <= middle)
+                Update(node.leftchild, index, key);
+            if (index <= node.right && index >= middle + 1)
+                Update(node.rightchild, index, key);
+            if (index >= node.left && index <= node.right)
+            {
+                //说明找到了节点
+                if (node.left == node.right)
+                {
+                    nums[index] = key;
+
+                    node.Sum = node.Max = node.Min = key;
+                }
+                else
+                {
+                    //回溯时统计左右子树的值(min，max，sum)
+                    node.Min = Math.Min(node.leftchild.Min, node.rightchild.Min);
+                    node.Max = Math.Max(node.leftchild.Max, node.rightchild.Max);
+                    node.Sum = node.leftchild.Sum + node.rightchild.Sum;
+                }
+            }
+        } 
+    }
+
+    [System.Serializable]
+    public class SegmentTreeWithData<T> where T : class,new()
+    {
+        public class Node
+        {
+            public int left;
+            public int right;
+            public Node leftchild;
+            public Node rightchild;
+            public int Sum;
+            public int Min;
+            public int Max;
+            public T data = null;
+
+            public void ReadAllData(ref List<T> datas)
+            {
+                if (this.data != null) datas.Add(data);
+                leftchild?.ReadAllData(ref datas);
+                rightchild?.ReadAllData(ref datas);
+            }
+        }
+
+        private Node nodeTree = new Node();
+        private int[] nums;
+
+        /// <summary>
+        /// Buildup by new datas
+        /// </summary>
+        /// <returns>Tree's root</returns>
+        public Node Build(int[] nums)
+        {
+            this.nums = nums;
+            return Build(nodeTree, 0, nums.Length - 1);
+        }
+        /// <summary>
+        /// Buildup by nums's data to a new node
+        /// </summary>
+        /// <param name="left">Using nums's left boundary</param>
+        /// <param name="right">Using nums's right boundary</param>
+        /// <returns>node or new one node</returns>
+        public Node Build(Node node, int left, int right)
+        {
+            //Indicating that it has reached the root, the max, sum, and min values of the current node
+            //(counting the values of the previous node interval during backtracking)
+            if (left == right)
+            {
+                return new Node
+                {
+                    left = left,
+                    right = right,
+                    Max = nums[left],
+                    Min = nums[left],
+                    Sum = nums[left]
+                };
+            }
+            //value init
+            if (node == null) node = new Node();
+            node.left = left;
+            node.right = right;
+            node.leftchild = Build(node.leftchild, left, (left + right) / 2);
+            node.rightchild = Build(node.rightchild, (left + right) / 2 + 1, right);
+            //count value
+            node.Min = Math.Min(node.leftchild.Min, node.rightchild.Min);
+            node.Max = Math.Max(node.leftchild.Max, node.rightchild.Max);
+            node.Sum = node.leftchild.Sum + node.rightchild.Sum;
+
+            return node;
+        }
+
+        public int Query(int left, int right, ref List<Node> datas)
+        {
+            return Query(nodeTree, left, right,ref datas);
+        }
+        public int Query(Node node, int left, int right , ref List<Node> datas)
+        {
+            int sum = 0;
+            return Query(node, left, right, ref sum,ref datas);
+        }
+        public int Query(Node node, int left, int right, ref int sum, ref List<Node> datas)
+        {
+            if (left <= node.left && right >= node.right)
+            {
+                sum += node.Sum;
+                datas.Add(node);
+                return sum;
+            }
+            else
+            {
+                if (node.left > right || node.right < left) return sum;
+                var middle = (node.left + node.right) / 2;
+
+                if (left <= middle)
+                {
+                    Query(node.leftchild, left, right, ref sum,ref datas);
+                }
+                if (right >= middle)
+                {
+                    Query(node.rightchild, left, right, ref sum,ref datas);
+                }
+                return sum;
+            }
+        }
+
+        public Node First(int index)
+        {
+            return First(index, out Node target) ? target : null;
+        }
+        public bool First(int index,out Node target)
+        {
+            return First(index,out target);
+        }
+        public bool First(Node node, int index, out Node target)
+        {
+            if (index == node.left && index == node.right)
+            {
+                target = node;
+                return true;
+            }
+            else
+            {
+                target = null;
+                if (node.left > index || node.right < index) return false;
+                var middle = (node.left + node.right) / 2;
+
+                if (index <= middle)
+                {
+                    if (First(node.leftchild, index, out target)) return true;
+                }
+                if (index >= middle)
+                {
+                    if (First(node.rightchild, index, out target)) return true;
+                }
+                return false;
+            }
+        }
+
+        public void Update(int index, int key)
+        {
+            Update(nodeTree, index, key);
+        }
+        public void Update(Node node, int index, int key)
+        {
+            if (node == null) return;
+            var middle = (node.left + node.right) / 2;
+            if (index >= node.left && index <= middle)
+                Update(node.leftchild, index, key);
+            if (index <= node.right && index >= middle + 1)
+                Update(node.rightchild, index, key);
+            if (index >= node.left && index <= node.right)
+            {
+                //说明找到了节点
+                if (node.left == node.right)
+                {
+                    nums[index] = key;
+
+                    node.Sum = node.Max = node.Min = key;
+                }
+                else
+                {
+                    //回溯时统计左右子树的值(min，max，sum)
+                    node.Min = Math.Min(node.leftchild.Min, node.rightchild.Min);
+                    node.Max = Math.Max(node.leftchild.Max, node.rightchild.Max);
+                    node.Sum = node.leftchild.Sum + node.rightchild.Sum;
+                }
+            }
+        }
+    }
+}
+
+namespace Diagram.Message
+{
+    public static class CacheAssets
+    {
+        public static string Messages = ""; 
+    }
+
+    public class GetCache
+    {
+        public string message;
+        public GetCache(int index)
+        {
+            var strs = CacheAssets.Messages.Split(';');
+            if (strs.Length > index) message = strs[index];
+            else message = "";
+        }
+    }
+
+    public class SetCache
+    {
+        public string message;
+        public SetCache(string message)
+        {
+            CacheAssets.Messages = message;
+            this.message = message;
+        }
+    }
+
+    public class AddCache
+    {
+        public string message;
+        public AddCache(string message)
+        {
+            CacheAssets.Messages += (CacheAssets.Messages.Length == 0 ? "" : ";") + message;
         }
     }
 }

@@ -8,5 +8,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/DiagramEntry.unity
     guid: 12b9517319cd44f4ead13cc84ca40847
+  - enabled: 1
+    path: Assets/Scenes/MinnesEditor.unity
+    guid: 3217aed9faf84424497a40eb5cdfb6eb
   m_configObjects:
     com.unity.adaptiveperformance.simulator.provider_settings: {fileID: 11400000, guid: b0914d94e62017944b387697f13a674a, type: 2}

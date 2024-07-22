@@ -1,0 +1,1 @@
+this -> LoadSong("E:\Diagram\Assets\削除 (Sakuzyo) - Scheol.ogg")

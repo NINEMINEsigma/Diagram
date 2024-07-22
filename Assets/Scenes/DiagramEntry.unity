@@ -133,6 +133,7 @@ GameObject:
   m_Component:
   - component: {fileID: 583849555}
   - component: {fileID: 583849554}
+  - component: {fileID: 583849556}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -152,7 +153,7 @@ Light:
   m_Type: 1
   m_Shape: 0
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
-  m_Intensity: 1
+  m_Intensity: 100000
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -192,11 +193,11 @@ Light:
     m_Bits: 4294967295
   m_RenderingLayerMask: 1
   m_Lightmapping: 4
-  m_LightShadowCasterMode: 0
+  m_LightShadowCasterMode: 2
   m_AreaSize: {x: 1, y: 1}
   m_BounceIntensity: 1
   m_ColorTemperature: 6570
-  m_UseColorTemperature: 0
+  m_UseColorTemperature: 1
   m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
@@ -217,6 +218,128 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!114 &583849556
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 583849553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a68c43fe1f2a47cfa234b5eeaa98012, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Intensity: 100000
+  m_EnableSpotReflector: 1
+  m_LuxAtDistance: 1
+  m_InnerSpotPercent: 0
+  m_SpotIESCutoffPercent: 100
+  m_LightDimmer: 1
+  m_VolumetricDimmer: 1
+  m_LightUnit: 2
+  m_FadeDistance: 10000
+  m_VolumetricFadeDistance: 10000
+  m_AffectDiffuse: 1
+  m_AffectSpecular: 1
+  m_NonLightmappedOnly: 0
+  m_ShapeWidth: 0.5
+  m_ShapeHeight: 0.5
+  m_AspectRatio: 1
+  m_ShapeRadius: 0.025
+  m_SoftnessScale: 1
+  m_UseCustomSpotLightShadowCone: 0
+  m_CustomSpotLightShadowCone: 30
+  m_MaxSmoothness: 0.99
+  m_ApplyRangeAttenuation: 1
+  m_DisplayAreaLightEmissiveMesh: 0
+  m_AreaLightCookie: {fileID: 0}
+  m_IESPoint: {fileID: 0}
+  m_IESSpot: {fileID: 0}
+  m_IncludeForRayTracing: 1
+  m_AreaLightShadowCone: 120
+  m_UseScreenSpaceShadows: 0
+  m_InteractsWithSky: 1
+  m_AngularDiameter: 0.5
+  m_FlareSize: 2
+  m_FlareTint: {r: 1, g: 1, b: 1, a: 1}
+  m_FlareFalloff: 4
+  m_SurfaceTexture: {fileID: 0}
+  m_SurfaceTint: {r: 1, g: 1, b: 1, a: 1}
+  m_Distance: 1.5e+11
+  m_UseRayTracedShadows: 0
+  m_NumRayTracingSamples: 4
+  m_FilterTracedShadow: 1
+  m_FilterSizeTraced: 16
+  m_SunLightConeAngle: 0.5
+  m_LightShadowRadius: 0.5
+  m_SemiTransparentShadow: 0
+  m_ColorShadow: 1
+  m_DistanceBasedFiltering: 0
+  m_EvsmExponent: 15
+  m_EvsmLightLeakBias: 0
+  m_EvsmVarianceBias: 0.00001
+  m_EvsmBlurPasses: 0
+  m_LightlayersMask: 1
+  m_LinkShadowLayers: 1
+  m_ShadowNearPlane: 0.1
+  m_BlockerSampleCount: 24
+  m_FilterSampleCount: 16
+  m_MinFilterSize: 0.1
+  m_KernelSize: 5
+  m_LightAngle: 1
+  m_MaxDepthBias: 0.001
+  m_ShadowResolution:
+    m_Override: 512
+    m_UseOverride: 1
+    m_Level: 0
+  m_ShadowDimmer: 1
+  m_VolumetricShadowDimmer: 1
+  m_ShadowFadeDistance: 10000
+  m_UseContactShadow:
+    m_Override: 0
+    m_UseOverride: 1
+    m_Level: 0
+  m_RayTracedContactShadow: 0
+  m_ShadowTint: {r: 0, g: 0, b: 0, a: 1}
+  m_PenumbraTint: 0
+  m_NormalBias: 0.75
+  m_SlopeBias: 0.5
+  m_ShadowUpdateMode: 0
+  m_AlwaysDrawDynamicShadows: 0
+  m_UpdateShadowOnLightMovement: 0
+  m_CachedShadowTranslationThreshold: 0.01
+  m_CachedShadowAngularThreshold: 0.5
+  m_BarnDoorAngle: 90
+  m_BarnDoorLength: 0.05
+  m_preserveCachedShadow: 0
+  m_OnDemandShadowRenderOnPlacement: 1
+  m_ShadowCascadeRatios:
+  - 0.05
+  - 0.2
+  - 0.3
+  m_ShadowCascadeBorders:
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.2
+  m_ShadowAlgorithm: 0
+  m_ShadowVariant: 0
+  m_ShadowPrecision: 0
+  useOldInspector: 0
+  useVolumetric: 1
+  featuresFoldout: 1
+  m_AreaLightEmissiveMeshShadowCastingMode: 0
+  m_AreaLightEmissiveMeshMotionVectorGenerationMode: 0
+  m_AreaLightEmissiveMeshLayer: -1
+  m_Version: 11
+  m_ObsoleteShadowResolutionTier: 1
+  m_ObsoleteUseShadowQualitySettings: 0
+  m_ObsoleteCustomShadowResolution: 512
+  m_ObsoleteContactShadows: 0
+  m_PointlightHDType: 0
+  m_SpotLightShape: 0
+  m_AreaLightShape: 0
 --- !u!1 &796672060
 GameObject:
   m_ObjectHideFlags: 0
@@ -441,3 +564,145 @@ MonoBehaviour:
       enableFptlForForwardOpaque: 0
       enableBigTilePrepass: 0
       isFptlEnabled: 0
+--- !u!1 &1750012147
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1750012149}
+  - component: {fileID: 1750012148}
+  m_Layer: 0
+  m_Name: GlobalSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 2800000, guid: c0c20e5b1c25cc147943b8dc1da802ad, type: 3}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1750012148
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1750012147}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8c4f9625c297cc47b6b06b9df5fec9f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mCanvasInitializer:
+    EADObjects: []
+  TargetSceneName: 
+  OnSceneStart:
+    m_PersistentCalls:
+      m_Calls: []
+  OnSceneEnd:
+    m_PersistentCalls:
+      m_Calls: []
+  IsNeedExcepion: 1
+  MaxRecordItemCount: 10000
+  _Button: {fileID: 1498806284698747971, guid: 6be8b892649722f46b1c22cd647f573b, type: 3}
+  _DropDown: {fileID: 3762967444482738523, guid: 671e8cc089f46934cb79b307758c3cc8, type: 3}
+  _InputField: {fileID: 5191791341152653597, guid: 27a92f1ef5bc9c94a97ea07b6509e3d8, type: 3}
+  _RawImage: {fileID: 3866729093808359234, guid: ea9da0ac8b1e9764fb91a892e0737e7a, type: 3}
+  _Slider: {fileID: 6436064238636930884, guid: e1f7008f05821744f8c98db9d09a2466, type: 3}
+  _Text: {fileID: 4247100306540257601, guid: d7f701b428163a440a69cd4d249ca855, type: 3}
+  _Toggle: {fileID: 254901351885064430, guid: a0e2171712923504dad4ca3e6710777e, type: 3}
+  _ModernUIButton: {fileID: 79093104384552664, guid: 829a52609d2b90c459f4cd9cbf354120, type: 3}
+  _ModernUIDropdown: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
+  _ModernUIFillBar: {fileID: 684687444029842191, guid: 20897c372dc203a4db37d6dbee571e2a, type: 3}
+  _ModernUIInputField: {fileID: 3241788777981816900, guid: 7cf1e0d66f33a99498935b8d8545419b, type: 3}
+  _ModernUISwitch: {fileID: 5565325451450447353, guid: 92de08d6332eef445899cfb2f176d7dd, type: 3}
+  _Image: {fileID: 350532603337223207, guid: 8c9f0d46552aa6847b18cd92b5ed7b71, type: 3}
+  _ColorManager: {fileID: 386324562519897791, guid: ab8b8639395bd52468868944346a646a, type: 3}
+  _AudioSource: {fileID: 1273201300325413191, guid: 711c6dbbd6f2fc043895cdc8329b55a9, type: 3}
+  _CustomWindowElement: {fileID: 74856100616418833, guid: 312f31ed2782b8f48b2b5e85ef045aa2, type: 3}
+  _ListView: {fileID: 7771118446552276518, guid: 5f9b6ed662399af418a91e58e39244e5, type: 3}
+  _TouchPanel: {fileID: 654491615134191917, guid: d52b56293b7adf74e9328d79d24c1402, type: 3}
+  IsAutoSaveArchitecturesDebugLog: 0
+  AutoSaveArchitecturesDebugLogTimeLimit: 60
+  AutoSaveArchitecturesDebugLogTimeLimitCounter:
+    clockS: 638572779561025964
+    clockE: 638572779561025964
+    clockU: 0
+  _IsOnValidate: 0
+  RecordPath: null
+  record: []
+  IsEnableSceneController: 1
+  isAsyncToLoadNextScene: 0
+  WaitTime: 1.5
+  IntValues:
+    Data: []
+    OnAdd:
+      m_PersistentCalls:
+        m_Calls: []
+    OnTryAdd:
+      m_PersistentCalls:
+        m_Calls: []
+    OnRemove:
+      m_PersistentCalls:
+        m_Calls: []
+    OnReplace:
+      m_PersistentCalls:
+        m_Calls: []
+  FloatValues:
+    Data: []
+    OnAdd:
+      m_PersistentCalls:
+        m_Calls: []
+    OnTryAdd:
+      m_PersistentCalls:
+        m_Calls: []
+    OnRemove:
+      m_PersistentCalls:
+        m_Calls: []
+    OnReplace:
+      m_PersistentCalls:
+        m_Calls: []
+  StringValues:
+    Data: []
+    OnAdd:
+      m_PersistentCalls:
+        m_Calls: []
+    OnTryAdd:
+      m_PersistentCalls:
+        m_Calls: []
+    OnRemove:
+      m_PersistentCalls:
+        m_Calls: []
+    OnReplace:
+      m_PersistentCalls:
+        m_Calls: []
+  CastListeners:
+    Data: []
+    OnAdd:
+      m_PersistentCalls:
+        m_Calls: []
+    OnTryAdd:
+      m_PersistentCalls:
+        m_Calls: []
+    OnRemove:
+      m_PersistentCalls:
+        m_Calls: []
+    OnReplace:
+      m_PersistentCalls:
+        m_Calls: []
+  IsPermittedBroadcast: 1
+--- !u!4 &1750012149
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1750012147}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 2
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
