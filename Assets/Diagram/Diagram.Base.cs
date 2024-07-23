@@ -3904,14 +3904,14 @@ namespace Diagram
         public static readonly string persistentDataPath = "";
         public static readonly string dataPath = "";
 #else   
-        public static readonly string persistentDataPath = Application.persistentDataPath;
-        public static readonly string userPath =
+        public static string persistentDataPath => Application.persistentDataPath;
+        public static string userPath =>
 #if PLATFORM_STANDALONE_WIN
             Application.streamingAssetsPath;
 #else
             Application.persistentDataPath;
 #endif
-        public static readonly string dataPath = Application.dataPath;
+        public static string dataPath => Application.dataPath;
 #endif
         public const string backupFileSuffix = ".bac";
         public const string temporaryFileSuffix = ".tmp";
@@ -4415,13 +4415,13 @@ namespace Diagram
             {
                 return self as T;
             }
-#if UNITY_EDITOR
             else
             {
+#if UNITY_EDITOR
                 Debug.LogWarning($"you try to use an Invariant<{typeof(T).FullName}> by As");
+#endif
                 return null;
             }
-#endif
         }
 
         public static bool As<T>(this object self, out T result) where T : class
@@ -4952,6 +4952,11 @@ namespace Diagram
 
 namespace Diagram
 {
+    public interface IOnDependencyCompleting
+    {
+        void OnDependencyCompleting();
+    }
+
     [Serializable]
     public class ArchitectureException : DiagramException
     {
@@ -5071,7 +5076,8 @@ namespace Diagram
                 DependenciesLater.Add(target, new Dictionary<Type, bool>().Share(out var dic));
                 foreach (var item in dependences)
                 {
-                    dic.Add(item, Components.ContainsKey(item));
+                    bool isContains = Components.ContainsKey(item);
+                    dic.Add(item, isContains);
                 }
                 ToolDetectRegisteredsDependence((Dictionary<Type, bool> dic) =>
                 {
@@ -5089,9 +5095,10 @@ namespace Diagram
             protected Architecture RegisterWithCallback(BaseWrapper target)
             {
                 DependenciesLater.Remove(target);
-                target.TryRunMethodByName("OnDependencyCompleting", out object _, AllBindingFlags);
+                if (target.Ontology.TryRunMethodByName("OnDependencyCompleting", out object _, AllBindingFlags) == false)
+                    target.Ontology.As<IOnDependencyCompleting>()?.OnDependencyCompleting();
                 target.IsRegisterCallback = true;
-                target.TryRunMethodByName("OnInit", out object _, AllBindingFlags);
+                target.Ontology.TryRunMethodByName("OnInit", out object _, AllBindingFlags);
                 return this;
             }
             /// <summary>

@@ -1,0 +1,5 @@
+this -> InitPosition(0,5,0)
+this -> MakeRotating(0,10,0,0,0,0,0,-50,24)
+this -> MakeRotating(10,15,0,0,0,20,0,50,26)
+this -> MakeRotating(15,20,20,0,50,10,0,0,24)
+this -> RegisterOnTimeLine()

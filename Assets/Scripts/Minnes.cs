@@ -1,25 +1,65 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using AD;
 using AD.UI;
 using AD.Utility;
 using Diagram;
 using Diagram.Arithmetic;
 using Diagram.Message;
 using UnityEngine;
+using Quaternion = UnityEngine.Quaternion;
+using Vector3 = UnityEngine.Vector3;
 
 namespace Game
 {
     public class Minnes : MonoBehaviour
     {
+        public void LoadScene(string package, string sceneName)
+        {
+            using ToolFile file = new(package, false, true, false);
+            var ab = file.LoadAssetBundle();
+            sceneName.LoadSceneAsync(UnityEngine.SceneManagement.LoadSceneMode.Additive);//.MarkCompleted
+        }
         public void SetSpeed(float speed) => ProjectSpeed = speed;
         public AudioSourceController ASC;
         public void LoadSong(string song)
         {
             ASC.LoadOnUrl(song, AudioSourceController.GetAudioType(song), true);
         }
+        public void WaitForPlay(float time)
+        {
+            StartCoroutine(IWaitForPlay());
+            IEnumerator IWaitForPlay()
+            {
+                yield return new WaitForSeconds(time);
+                while (ASC.CurrentClip == null) yield return null;
+                ASC.Play();
+            }
+        }
+        public void PlaySong()
+        {
+            ASC.Play();
+        }
+        public void StopSong()
+        {
+            ASC.Stop();
+        }
+        public void PauseSong()
+        {
+            ASC.Pause();
+        }
+        public void PlayOrPauseSong()
+        {
+            ASC.PlayOrPause();
+        }
         public void SetBPM(float bpm) => ProjectBPM = bpm;
-        public void SetProject(string projectName) => ProjectName = projectName;
+        public void SetProject(string projectName)
+        { 
+            ProjectName = projectName;
+            LineScript.BinPath = Path.Combine(ToolFile.userPath, ProjectName);
+        }
         public void Log(string message)
         {
             Debug.Log(message);
@@ -29,7 +69,13 @@ namespace Game
             Debug.Log(new GetCache(index).message);
         }
 
+        public void ReloadScripts()
+        {
+            ADGlobalSystem.instance.OnEnd();
+        }
+
         public static string ProjectName = "Test";
+        public static string ProjectPath = Path.Combine(ToolFile.userPath, ProjectName);
         public static float ProjectBPM = 60;
         public static float ProjectSpeed = 1;
         public static Minnes MinnesInstance;
@@ -41,26 +87,24 @@ namespace Game
         {
             ArchitectureDiagram.RegisterArchitecture(this);
             MinnesInstance = this;
-        }
-        private void Start()
-        {
-            this.Architecture<Minnes>().Register<StartRuntimeCommand>(new BaseWrapper.Model(new StartRuntimeCommand()));
+            Game.NoteGenerater.InitNoteGenerater();
             {
-                using ToolFile file = new(Path.Combine(ToolFile.userPath, "Config.ls"), true, true, false);
+                using ToolFile file = new(Path.Combine(ToolFile.userPath, "MinnesConfig.ls"), true, true, false);
                 new LineScript(("this", this)).Run(file.GetString(false, System.Text.Encoding.UTF8));
             }
             {
-                using ToolFile projectFile = new(Path.Combine(ToolFile.userPath, ProjectName, "Minnes.ls"), true, true, false);
-                new LineScript(("this", this)).Run(projectFile.GetString(false, System.Text.Encoding.UTF8));
+                LineScript.RunScript("Minnes.ls", ("this", this)).ReadAndRun(ProjectName + ".ls");
             }
             foreach (var item in EnableContronller)
             {
                 item.gameObject.SetActive(true);
             }
+            this.Architecture<Minnes>().Register<StartRuntimeCommand>(new BaseWrapper.Model(new StartRuntimeCommand()));
         }
         private void OnDestroy()
         {
             ArchitectureDiagram.UnregisterArchitecture<Minnes>();
+            MinnesGenerater.GenerateAction.Clear();
         }
 
         /*
@@ -98,6 +142,7 @@ namespace Game
 
         [SerializeField] private float RawPastTick = 0;
         [SerializeField] private float RawCurrentTick = 0;
+        [SerializeField] private float RawLimitTick = 3;
         public float CurrentTick
         {
             get => RawPastTick;
@@ -105,7 +150,6 @@ namespace Game
             {
                 if (RawCurrentTick != value)
                 {
-                    RawPastTick = RawCurrentTick;
                     RawCurrentTick = value;
                 }
             }
@@ -121,13 +165,26 @@ namespace Game
             {
                 item.TimeUpdate(CurrentTick, CurrentStats);
             }
-            RawPastTick = RawCurrentTick;
+            RawPastTick =
+                Mathf.Abs(RawCurrentTick - RawPastTick) > Time.deltaTime * RawLimitTick 
+                ? (RawCurrentTick - RawPastTick > 0 
+                    ? RawPastTick + Time.deltaTime * RawLimitTick 
+                    : RawPastTick - Time.deltaTime * RawLimitTick )
+                : RawCurrentTick;
         }
     }
 
     [Serializable]
     public class MinnesController:MonoBehaviour
     {
+        public static IEnumerator WaitForSomeTime(Action action)
+        {
+            yield return null;
+            yield return null;
+            yield return null;
+            action.Invoke();
+        }
+
         public string MyScriptName;
         public float FocusTime;
         public void SetTargetScript(string path) => MyScriptName = path;
@@ -135,29 +192,40 @@ namespace Game
 
         public void ReloadLineScript()
         {
-            if (MyScriptName.Length == 0) return;
-            LineScript core = new(("this", this));
-            using ToolFile file = new(Path.Combine(ToolFile.userPath, Minnes.ProjectName, MyScriptName), true, true, false);
-            core.Run(file.GetString(false, System.Text.Encoding.UTF8));
+            if (TimeListener == null) return;
+            if (MyScriptName == null || MyScriptName.Length == 0) return;
+            LineScript.RunScript(MyScriptName);
         }
 
         virtual protected void OnEnable()
         {
-            ReloadLineScript();
+            TimeListener ??= new();
+            StartCoroutine(WaitForSomeTime(ReloadLineScript));
         }
 
         virtual protected void OnDisable()
         {
-            TimeListener.Clear();
+            TimeListener = null;
+            Minnes.MinnesInstance.AllControllers.Remove(this);
         }
 
-        public Dictionary<string, Action<float, float>> TimeListener = new();
+#if UNITY_EDITOR
+        public int TimeListenerCounter;
+#endif
+        public Dictionary<string, Action<float, float>> TimeListener;
         public virtual void TimeUpdate(float time, float stats)
         {
+#if UNITY_EDITOR
+            TimeListenerCounter = TimeListener.Count;
+#endif
             foreach (var invoker in TimeListener)
             {
                 invoker.Value(time, stats);
             }
+        }
+        public void RegisterOnTimeLine()
+        {
+            Minnes.MinnesInstance.AllControllers.Add(this);
         }
 
         public void MakeDelay(int time,string expression)
@@ -212,6 +280,82 @@ namespace Game
                 if (time < startTime || time > endTime) return;
                 this.transform.localScale = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
             });
+        }
+        public void MakeRelativeMovement(float startTime, float endTime, float x, float y, float z, int easeType)
+        {
+            var eCurve = new EaseCurve((EaseCurveType)easeType);
+            Vector3 from = new(transform.position.x, transform.position.y, transform.position.z);
+            Vector3 to = new Vector3(x, y, z) + from;
+            TimeListener.TryAdd($"RelativeMovement-{startTime}-{endTime}", (float time, float stats) =>
+            {
+                if (time < startTime || time > endTime) return;
+                this.transform.position = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
+            });
+        }
+        public void MakeRelativeRotating(float startTime, float endTime, float x, float y, float z, int easeType)
+        {
+            var eCurve = new EaseCurve((EaseCurveType)easeType);
+            Vector3 from = new(transform.eulerAngles.x, transform.eulerAngles.y, transform.eulerAngles.z);
+            Vector3 to = new Vector3(x, y, z) + from;
+            TimeListener.TryAdd($"RelativeRotating-{startTime}-{endTime}", (float time, float stats) =>
+            {
+                if (time < startTime || time > endTime) return;
+                this.transform.rotation = Quaternion.Lerp(Quaternion.Euler(from), Quaternion.Euler(to), eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
+            });
+        }
+        public void MakeRelativeScale(float startTime, float endTime, float x, float y, float z,int easeType)
+        {
+            var eCurve = new EaseCurve((EaseCurveType)easeType);
+            Vector3 from = new(transform.localScale.x, transform.localScale.y, transform.localScale.z);
+            Vector3 to = new Vector3(x, y, z) + from;
+            TimeListener.TryAdd($"RelativeScaleTransform-{startTime}-{endTime}", (float time, float stats) =>
+            {
+                if (time < startTime || time > endTime) return;
+                this.transform.localScale = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
+            });
+        }
+
+        public MeshRenderer meshRenderer;
+        public MeshFilter meshFilter;
+        public MeshRenderer MyRenderer => meshRenderer ??= this.SeekComponent<MeshRenderer>();
+        public MeshFilter MyMeshFilter => meshFilter ??= this.SeekComponent<MeshFilter>();
+        public Mesh MyMesh { get => MyMeshFilter.mesh; set => MyMeshFilter.mesh = value; }
+        public void LoadMesh(string package, string name)
+        {
+            if (package == "None" || name == "None") return;
+            using ToolFile file = new(package, false, true, true);
+            if (file)
+                this.MyMesh = file.LoadAssetBundle().LoadAsset<Mesh>(name);
+            else
+                Debug.LogError(file.FilePath + " is not exist");
+        }
+        public Material MyMaterial { get => MyRenderer.sharedMaterial; set => MyRenderer.sharedMaterial = value; }
+        public void LoadMaterial(string package, string name)
+        {
+            if (package == "None" || name == "None") return;
+            using ToolFile file = new(package, false, true, true);
+            if (file)
+                this.MyMaterial = file.LoadAssetBundle().LoadAsset<Material>(name);
+            else
+                Debug.LogError(file.FilePath + " is not exist");
+        }
+        public GameObject LoadSubGameObject(string package, string name)
+        {
+            if (package == "None" || name == "None") return null;
+            using ToolFile file = new(package, false, true, true);
+            if (file)
+            {
+                file.LoadAssetBundle().LoadAsset<GameObject>(name).Share(out var obj).transform.SetParent(transform, false);
+                obj.name = name;
+                return obj;
+            }
+            else
+                Debug.LogError(file.FilePath + " is not exist");
+            return null;
+        }
+        public void RemoveChild(string name)
+        {
+            GameObject.Destroy(this.transform.Find(name));
         }
 
         public void Log(string message)

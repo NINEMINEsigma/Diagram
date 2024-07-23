@@ -41,3 +41,18 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: Static Low
+    uniqueID: 1769837689
+    locked: 0
+  - name: Low
+    uniqueID: 2762757707
+    locked: 0
+  - name: Game
+    uniqueID: 2895957379
+    locked: 0
+  - name: High
+    uniqueID: 2784543857
+    locked: 0
+  - name: Static High
+    uniqueID: 1527685671
+    locked: 0

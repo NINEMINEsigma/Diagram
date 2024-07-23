@@ -186,7 +186,7 @@ namespace Diagram.Arithmetic
                 {
                     if (result.IndexOf(item.Key, StringComparison.CurrentCultureIgnoreCase).Share(out var index) != -1)
                     {
-                        result = expression.Replace(item.Key, "(" + item.Value + ")");
+                        result = result.Replace(item.Key, "(" + item.Value + ")");
                         isContinue = true;
                     }
                 }

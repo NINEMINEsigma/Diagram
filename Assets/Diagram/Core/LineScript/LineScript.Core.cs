@@ -27,6 +27,25 @@ namespace Diagram
 
     public class LineScript
     {
+        public static string BinPath = "";
+        public static LineScript GetScript(string path, out string str, params (string, object)[] values)
+        {
+            using ToolFile file = new(Path.Combine(BinPath, path), true, true, false);
+            str = file.GetString(false, System.Text.Encoding.UTF8);
+            return new LineScript(values);
+        }
+        public static LineScript RunScript(string path,params (string, object)[] values)
+        {
+            using ToolFile file = new(Path.Combine(BinPath, path), true, true, false);
+            new LineScript(values).Share(out var script).Run(file.GetString(false, System.Text.Encoding.UTF8));
+            return script;
+        }
+        public LineScript ReadAndRun(string path)
+        {
+            using ToolFile file = new(Path.Combine(BinPath, path), true, true, false);
+            this.Run(file.GetString(false, System.Text.Encoding.UTF8));
+            return this;
+        }
         public LineScript(params (string, object)[] createdInstances)
         {
             foreach (var item in createdInstances)
@@ -157,13 +176,13 @@ namespace Diagram
                 string word = words[i];
                 if (word.Length == 0) continue;
                 LineWord lineWord = LineWord.Read(this, word);
-                bool is_need_trans_controller = true;
+                //bool is_need_trans_controller = true;
                 if (Controller.DetectNext(lineWord))
                 {
-                    is_need_trans_controller = Controller.ResolveToBehaviour(this, lineWord);
+                    Controller = Controller.ResolveToBehaviour(this, lineWord);
                 }
-                else throw new ParseException($"On {lineindex} {i}: \"{word}\"<{lineWord.GetType().Name}> is not allow");
-                if (is_need_trans_controller) Controller = lineWord;
+                else throw new ParseException($"On {lineindex} {i}:...{(i > 0 ? words[i - 1] + "<" + Controller.GetType().Name + ">" : "")} {word}<{lineWord.GetType().Name}>... is not allow");
+                //if (is_need_trans_controller) Controller = lineWord;
             }
             Controller.ResolveToBehaviour(this,null);
         }

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using Diagram.Arithmetic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 #pragma warning disable IDE1006 // 命名样式
@@ -51,8 +53,8 @@ namespace Diagram
         /// <summary>
         /// Transform the word into an executable act
         /// </summary>
-        /// <returns>Is need to replace controller word</returns>
-        public virtual bool ResolveToBehaviour(LineScript core, LineWord next) { return true; }
+        /// <returns>Next controller word(is this? is next? or a new one)</returns>
+        public virtual LineWord ResolveToBehaviour(LineScript core, LineWord next) { return next; }
     }
 
     public abstract class SystemKeyWord : LineWord
@@ -66,7 +68,7 @@ namespace Diagram
         {
             public override bool AllowLinkSymbolWord => true;
             public override bool AllowLinkLiteralValue => true;
-            public override bool ResolveToBehaviour(LineScript core, LineWord next)
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
                 string class_name = next.As<SourceValueWord>().Source;
                 Type type = ReflectionExtension.Typen(class_name);
@@ -79,7 +81,7 @@ namespace Diagram
                         core.CreatedSymbols.TryAdd(method.Name, new FunctionSymbolWord(method.Name, class_name, new(method, method.GetParameters().Length)));
                         core.CreatedSymbols.Add(class_name + "." + method.Name, new FunctionSymbolWord(method.Name, core.MainUsingInstances[class_name], new(method, method.GetParameters().Length)));
                     }
-                    return true;
+                    return next;
                 }
                 //foreach (var assembly in Diagram.ReflectionExtension.GetAssemblies())
                 //{
@@ -99,19 +101,34 @@ namespace Diagram
         }
         /// <summary>
         /// <list type="bullet"><b>import</b> script</list>
-        /// Reference another script, and the code for that script will replace this line
+        /// Reference another script, and the code for that script will be sub script
         /// </summary>
         public class import_Key : SystemKeyWord
         {
             public override bool AllowLinkLiteralValue => true;
-            public override bool ResolveToBehaviour(LineScript core, LineWord next)
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
                 LineScript subcore = new();
                 string path = next.As<SourceValueWord>().Source;
-                using ToolFile file = new ToolFile(path, false, true, true);
+                using ToolFile file = new ToolFile(Path.Combine(LineScript.BinPath, path), false, true, true);
                 subcore.Run(file.GetString(false, System.Text.Encoding.UTF8));
                 core.SubLineScript(subcore);
-                return true;
+                return next;
+            }
+        }
+        /// <summary>
+        /// <list type="bullet"><b>include</b> script</list>
+        /// Reference another script, and the code for that script will replace this line
+        /// </summary>
+        public class include_Key : SystemKeyWord
+        {
+            public override bool AllowLinkLiteralValue => true;
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
+            {
+                string path = next.As<SourceValueWord>().Source;
+                using ToolFile file = new ToolFile(Path.Combine(LineScript.BinPath, path), false, true, true);
+                core.Run(file.GetString(false, System.Text.Encoding.UTF8));
+                return next;
             }
         }
         /// <summary>
@@ -121,10 +138,10 @@ namespace Diagram
         public class if_Key : SystemKeyWord
         {
             public override bool AllowLinkLiteralValue => true;
-            public override bool ResolveToBehaviour(LineScript core, LineWord next)
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
                 throw new NotImplementedException();
-                return true;
+                return next;
             }
         }
         /// <summary>
@@ -134,10 +151,10 @@ namespace Diagram
         public class else_Key : SystemKeyWord
         {
             public override bool AllowLinkLiteralValue => true; public override bool AllowLinkKeyWord => true;
-            public override bool ResolveToBehaviour(LineScript core, LineWord next)
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
                 throw new NotImplementedException();
-                return true;
+                return next;
             }
         }
         /// <summary>
@@ -147,10 +164,10 @@ namespace Diagram
         public class while_Key : SystemKeyWord
         {
             public override bool AllowLinkLiteralValue => true;
-            public override bool ResolveToBehaviour(LineScript core, LineWord next)
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
                 throw new NotImplementedException();
-                return true;
+                return next;
             }
         }
         /// <summary>
@@ -159,10 +176,10 @@ namespace Diagram
         /// </summary>
         public class break_Key : SystemKeyWord
         {
-            public override bool ResolveToBehaviour(LineScript core, LineWord next)
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
                 throw new NotImplementedException();
-                return true;
+                return next;
             }
         }
         /// <summary>
@@ -171,10 +188,10 @@ namespace Diagram
         /// </summary>
         public class continue_Key : SystemKeyWord
         {
-            public override bool ResolveToBehaviour(LineScript core, LineWord next)
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
                 throw new NotImplementedException();
-                return true;
+                return next;
             }
         }
         /// <summary>
@@ -187,24 +204,25 @@ namespace Diagram
         public class define_Key : SystemKeyWord
         {
             public override bool AllowLinkLiteralValue => true;
-            public override bool AllowLinkSymbolWord => base.AllowLinkSymbolWord;
+            public override bool AllowLinkSymbolWord => true;
 
             private string symbol_name = null;
             private bool is_equals_define = false;
 
-            public override bool ResolveToBehaviour(LineScript core, LineWord next)
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
-                if(symbol_name==null)
+                if (symbol_name == null)
                 {
                     this.symbol_name = next.As<SourceValueWord>().Source;
-                    return false;
+                    is_equals_define = false;
+                    return this;
                 }
-                else if(is_equals_define==false)
+                else if (is_equals_define == false)
                 {
-                    if(next is SymbolWord.OperatorKeyWord.OperatorEqual eqaulword)
+                    if (next is SymbolWord.OperatorKeyWord.OperatorAssign eqaulword)
                     {
                         is_equals_define = true;
-                        return true;
+                        return this;
                     }
                     else if (next is ReferenceSymbolWord symbol)
                     {
@@ -225,14 +243,31 @@ namespace Diagram
                     {
                         this.symbol_name = null;
                         throw new ParseException($"Unknown Parse Way On: define({this.symbol_name}) {next}");
-                    } 
-                    return true;
+                    }
+                    return this;
                 }
                 else
                 {
-                    symbol_name.RegisterVariable(next.As<SourceValueWord>().Source);
-                    is_equals_define = false;
-                    return true;
+                    if (core.CreatedInstances.TryGetValue(next.As<SourceValueWord>().Source, out var obj) &&
+                        DiagramType.CreateDiagramType(obj.GetType()).Share(out var dtype).IsPrimitive &&
+                        dtype.IsValueType && dtype.type != typeof(char))
+                    {
+                        core.CreatedInstances[this.symbol_name] = obj.ToString();
+                        symbol_name.InsertVariable(obj.ToString());
+                    }
+                    else if (obj is string)
+                    {
+                        core.CreatedInstances[this.symbol_name] = obj.ToString();
+                        symbol_name.InsertVariable(obj.ToString());
+                    }
+                    else if (next is LiteralValueWord literal)
+                    {
+                        core.CreatedInstances[this.symbol_name] = literal.Source;
+                        symbol_name.InsertVariable(literal.Source);
+                    }
+                    else symbol_name.InsertVariable(next.As<SourceValueWord>().Source);
+                    this.symbol_name = null;
+                    return next;
                 }
             }
         }
@@ -246,20 +281,20 @@ namespace Diagram
         public class new_Key : SystemKeyWord
         {
             public override bool AllowLinkLiteralValue => true;
-            public override bool AllowLinkSymbolWord => base.AllowLinkSymbolWord;
+            public override bool AllowLinkSymbolWord => true;
             private int counter = 0;
             private int max = 0;
             private string name = "";
             private string classname = "";
             private object[] constructorslist = null;
             private ParameterInfo[] parameterInfos = null;
-            public override bool ResolveToBehaviour(LineScript core, LineWord next)
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
                 if (counter == 0)
                 {
                     name = next.As<SourceValueWord>().Source;
                     counter++;
-                    return false;
+                    return this;
                 }
                 else if (counter == 1)
                 {
@@ -269,7 +304,7 @@ namespace Diagram
                     max = parameterInfos.Length;
                     constructorslist = new object[max];
                     counter++;
-                    return false;
+                    return this;
                 }
                 else if (counter - 2 < max)
                 {
@@ -303,7 +338,7 @@ namespace Diagram
                         }
                         else break;
                         counter++;
-                        return false;
+                        return this;
                     } while (false);
                     counter = 0;
                     throw new ParseException(name + " is cannt created", classname);
@@ -323,7 +358,80 @@ namespace Diagram
                 }
                 this.constructorslist = null;
                 this.max = 0;
-                return true;
+                return next;
+            }
+        }
+        /// <summary>
+        /// <list type="bullet"><b>delete</b> symbol-word</list>
+        /// Try to remove one reference of target core
+        /// </summary>
+        public class delete_Key : SystemKeyWord
+        {
+            public override bool AllowLinkSymbolWord => true;
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
+            {
+                next.As<SourceValueWord>().Source.Share(out var source);
+                if (core.MainUsingInstances.Remove(source)) { }
+                else if (core.CreatedInstances.Remove(source)) { }
+                else if (core.CreatedSymbols.Remove(source)) { }
+                return next;
+            }
+        }
+        /// <summary>
+        /// <list type="bullet"><b>call</b> script <see langword="import"/> (arg-name=arg-value)...</list>
+        /// Reference other script and pass in parameters, it will run in a new core
+        /// </summary>
+        public class call_key : SystemKeyWord
+        {
+            public override bool AllowLinkLiteralValue => true;
+            public override bool AllowLinkKeyWord => true;
+            public override bool AllowLinkSymbolWord => true;
+
+            private List<string> scriptNames = new();
+            private List<(string, object)> args = new();
+            private bool is_args_import = false;
+
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
+            {
+                if(next is import_Key)
+                {
+                    is_args_import = true;
+                    return this;
+                }
+                else if (is_args_import == false)
+                {
+                    scriptNames.Add(next.As<SourceValueWord>().Source);
+                }
+                else if (next == null)
+                {
+                    LineScript subScript = new LineScript
+                    {
+                        CreatedInstances = new(core.CreatedInstances),
+                        CreatedSymbols = new(core.CreatedSymbols),
+                        MainUsingInstances = new(core.MainUsingInstances)
+                    };
+                    is_args_import = false;
+                    foreach (var arg in args)
+                    {
+                        subScript.CreatedInstances[arg.Item1] = arg.Item2;
+                    }
+                    args.Clear();
+                    var temp = scriptNames.ToList();
+                    scriptNames.Clear();
+                    foreach (var scriptPath in temp)
+                    {
+                        using ToolFile file = new(Path.Combine(LineScript.BinPath, scriptPath), false, true, false);
+                        if (file)
+                            subScript.Run(file.GetString(false, System.Text.Encoding.UTF8));
+                    }
+                } 
+                else
+                {
+                    string[] strs = next.As<SourceValueWord>().Source.TrimStart('(', ' ').TrimEnd(')', ' ').Split('=');
+                    if (strs.Length != 2) throw new ParseException($"{next.As<SourceValueWord>().Source}Args format is wrong");
+                    args.Add((strs[0].Trim(' '), strs[1].Trim(' ')));
+                }
+                return this;
             }
         }
     }
@@ -423,30 +531,35 @@ namespace Diagram
         private int counter = 0;
         private object[] constructorslist;
 
-        private bool ToolSet(int index, string strword)
+        private bool ToolSet(int index, object input)
         {
             try
             {
-                if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(string)) this.constructorslist[index] = strword;
-                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(double)) this.constructorslist[index] = strword.Compute();
-                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(float)) this.constructorslist[index] = strword.Computef();
-                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(int)) this.constructorslist[index] = strword.Computei();
-                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(long)) this.constructorslist[index] = strword.Computel();
-                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(bool)) this.constructorslist[index] = strword != "false" && strword != "0";
-                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector4))
+                if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == input.GetType()) this.constructorslist[index] = input;
+                else if (input is string strword)
                 {
-                    var strs = strword.Split(',');
-                    constructorslist[index] = new Vector4(strs[0].Computef(), strs[1].Computef(), strs[2].Computef(), strs[3].Computef());
-                }
-                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector3))
-                {
-                    var strs = strword.Split(',');
-                    constructorslist[index] = new Vector3(strs[0].Computef(), strs[1].Computef(), strs[2].Computef());
-                }
-                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector2))
-                {
-                    var strs = strword.Split(',');
-                    constructorslist[index] = new Vector2(strs[0].Computef(), strs[1].Computef());
+                    if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(string)) this.constructorslist[index] = strword;
+                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(double)) this.constructorslist[index] = strword.Compute();
+                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(float)) this.constructorslist[index] = strword.Computef();
+                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(int)) this.constructorslist[index] = strword.Computei();
+                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(long)) this.constructorslist[index] = strword.Computel();
+                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(bool)) this.constructorslist[index] = strword != "false" && strword != "0";
+                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector4))
+                    {
+                        var strs = strword.Split(',');
+                        constructorslist[index] = new Vector4(strs[0].Computef(), strs[1].Computef(), strs[2].Computef(), strs[3].Computef());
+                    }
+                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector3))
+                    {
+                        var strs = strword.Split(',');
+                        constructorslist[index] = new Vector3(strs[0].Computef(), strs[1].Computef(), strs[2].Computef());
+                    }
+                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector2))
+                    {
+                        var strs = strword.Split(',');
+                        constructorslist[index] = new Vector2(strs[0].Computef(), strs[1].Computef());
+                    }
+                    else return false;
                 }
                 else return false;
             }
@@ -457,7 +570,7 @@ namespace Diagram
             return true;
         }
 
-        public override bool ResolveToBehaviour(LineScript core, LineWord next)
+        public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
         {
             //if(AnyFunctional==null)
             //{
@@ -471,22 +584,20 @@ namespace Diagram
                     int index = counter;
                     if (next is SymbolWord symbol)
                     {
-                        if (core.MainUsingInstances.TryGetValue(symbol.source, out object main)) constructorslist[index] = main;
-                        else if (core.CreatedInstances.TryGetValue(symbol.source, out object inst)) constructorslist[index] = inst;
+                        if (core.MainUsingInstances.TryGetValue(symbol.source, out object main) && ToolSet(index, main)) { }
+                        else if (core.CreatedInstances.TryGetValue(symbol.source, out object inst) && ToolSet(index, inst)) { }
                         else if (core.CreatedSymbols.TryGetValue(symbol.source, out var in_symbolWord))
                         {
-                            if (core.MainUsingInstances.TryGetValue(in_symbolWord.source, out object main2)) constructorslist[index] = main2;
-                            else if (core.CreatedInstances.TryGetValue(in_symbolWord.source, out object inst2)) constructorslist[index] = inst2;
-                            if (ToolSet(index, symbol.source) == false) break;
+                            if (core.MainUsingInstances.TryGetValue(in_symbolWord.source, out object main2) && ToolSet(index, main2)) { }
+                            else if (core.CreatedInstances.TryGetValue(in_symbolWord.source, out object inst2) && ToolSet(index, inst2)) { }
+                            else if (ToolSet(index, in_symbolWord)) { }
+                            else break;
                         }
                     }
-                    else if (next is LiteralValueWord literal)
-                    {
-                        if (ToolSet(index, literal.source) == false) break;
-                    }
+                    else if (next is SourceValueWord source && ToolSet(index, source.Source)) { }
                     else break;
                     counter++;
-                    return false;
+                    return this;
                 } while (false);
                 counter = 0;
                 throw new NotImplementedException();
@@ -494,7 +605,7 @@ namespace Diagram
             counter = 0;
             core.CreatedInstances["@result"] = this.AnyFunctional.Invoke(CoreInvokerInstance, this.constructorslist);
             this.constructorslist = new object[AnyFunctional.ArgsTotal];
-            return true;
+            return new ReferenceSymbolWord("@result");
         }
     }
 
@@ -507,14 +618,14 @@ namespace Diagram
         bool isOperator = false;
         public ReferenceSymbolWord(string source) : base(source) { }
 
-        public override bool ResolveToBehaviour(LineScript core, LineWord next)
+        public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
         {
             if (next is SymbolWord.OperatorKeyWord.OperatorPointTo)
             {
                 this.isOperator = true;
                 if (ReferenceInstance == null)
                     core.CreatedInstances.TryGetValue(this.Source, out ReferenceInstance);
-                return false;
+                return this;
             } 
             if (isOperator)
             {
@@ -523,13 +634,13 @@ namespace Diagram
                 if (ReferenceInstance.GetType().GetMethods().FirstOrDefault(T => T.Name == str).Share(out var method) != null)
                 {
                     Functional = new(str, ReferenceInstance, new(method, method.GetParameters().Length));
-                    return false;
+                    return this;
                 }
                 else if (DiagramType.CreateDiagramType(ReferenceInstance.GetType()).GetMember(str).Share(out var member) != null)
                 {
                     ReferenceInstance = ReferenceInstance.GetFieldByName(str);
                     this.source = member.name;
-                    return false;
+                    return this;
                 }
                 throw new ParseException($"Error Parse->{str}");
             }
@@ -541,8 +652,8 @@ namespace Diagram
                 }
                 else if (next == null)
                 {
-                    core.CreatedInstances["@" + this.Source] = ReferenceInstance;
-                    return true;
+                    //core.CreatedInstances["@result"] = ReferenceInstance;
+                    return next;
                 }
                 throw new ParseException("Unknown Parse way");
             }

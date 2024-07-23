@@ -16,7 +16,7 @@ namespace Diagram
             LauncherPath = Path.Combine(ToolFile.userPath, "LineScripts", "Launcher.ls");
         }
 
-        private void Awake()
+        private void Start()
         {
             LineWord.WordPairs = new()
             {
@@ -29,7 +29,10 @@ namespace Diagram
                 { "break",new SystemKeyWord.break_Key()},
                 { "continue",new SystemKeyWord.continue_Key()},
                 { "define",new SystemKeyWord.define_Key()},
-                { "new",new SystemKeyWord.new_Key()}
+                { "new",new SystemKeyWord.new_Key()},
+                {"include",new SystemKeyWord.include_Key() },
+                {"delete",new SystemKeyWord.delete_Key()},
+                {"call",new SystemKeyWord.call_key() }
             };
             StartCoroutine(Waiter());
 
@@ -39,6 +42,7 @@ namespace Diagram
                 yield return null;
                 yield return null;
                 yield return null;
+                Debug.Log("LineScriptConfig Load");
                 using ToolFile file = new(LauncherPath, false, true, true);
                 if (file)
                 {
@@ -66,18 +70,14 @@ namespace Diagram
 
         public void Start(string path)
         {
-            using ToolFile file = new(path, false, true, true);
-            if (file)
-                MyCore.Run(file.GetString(false, System.Text.Encoding.UTF8));
+            MyCore.Run($"include {path}");
         }
 
         public void Task(string path)
         {
             System.Threading.Tasks.Task.Run(() =>
             {
-                using ToolFile file = new(path, false, true, true);
-                if (file)
-                    new LineScript().Run(file.GetString(false, System.Text.Encoding.UTF8));
+                Start(path);
             });
         }
 

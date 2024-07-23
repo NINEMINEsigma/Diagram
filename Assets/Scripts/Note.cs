@@ -9,62 +9,46 @@ namespace Game
 
     }
 
+    public interface ISoundModule
+    {
+        
+    }
+
     public class NoteGenerater : MinnesGenerater
     {
         public static void InitNoteGenerater()
         {
-            MinnesGenerater.GenerateAction.Add("Note", () =>
-            {
-                return new GameObject().AddComponent<Note>();
-            });
+            MinnesGenerater.GenerateAction.Add("Note", () => Resources.Load<Note>("NoteBase").PrefabInstantiate());
         }
 
         public NoteGenerater() : base("Note")
         {
-            this.target = Resources.Load<Note>("NoteBase0");
+            target.name = "NoteBase";
+            target.TimeListener = new();
         }
     }
 
     public class Note : MinnesController
     {
-        public MeshRenderer meshRenderer;
-        public MeshFilter meshFilter;
-        public MeshRenderer MyRenderer => meshRenderer ??= this.SeekComponent<MeshRenderer>();
-        public MeshFilter MyMeshFilter => meshFilter ??= this.SeekComponent<MeshFilter>();
-        public Mesh MyMesh { get => MyMeshFilter.mesh; set => MyMeshFilter.mesh = value; }
-        public void LoadMesh(string package,string name)
-        {
-            using ToolFile file = new(package, false, true, true);
-            this.MyMesh = file.LoadAssetBundle().LoadAsset<Mesh>(name);
-        } 
-        public Material MyMaterial { get => MyRenderer.sharedMaterial;set => MyRenderer.sharedMaterial = value; }
-        public void LoadMaterial(string package,string name)
-        {
-            using ToolFile file = new(package, false, true, true);
-            this.MyMaterial = file.LoadAssetBundle().LoadAsset<Material>(name);
-        }
-        public GameObject LoadSubGameObject(string package,string name)
-        {
-            using ToolFile file = new(package, false, true, true);
-            file.LoadAssetBundle().LoadAsset<GameObject>(name).Share(out var obj).transform.SetParent(transform, false);
-            obj.name = name;
-            return obj;
-        }
         public Dictionary<string, IJudgeModule> JudgeModules = new();
-        public void LoadJudgeModule(string package,string name)
+        public Dictionary<string, ISoundModule> SoundModules = new();
+        public void LoadJudgeModule(string package, string name)
         {
-            if (LoadSubGameObject(package, name).SeekComponent<IJudgeModule>().Share(out var module) != null)
+            if (LoadSubGameObject(package, name).Share(out var obj) != null && obj.SeekComponent<IJudgeModule>().Share(out var module) != null)
                 JudgeModules.Add(name, module);
         }
-        public float JudgeTime => this.FocusTime;
-        public void InitNote(float judgeTime,string judge_module_package,string judge_module_name)
+        public void LoadSoundModule(string package, string name)
         {
-            SetFocusTime(judgeTime);
-            LoadJudgeModule(judge_module_package,judge_module_name);
+            if (LoadSubGameObject(package, name).Share(out var obj) != null && obj.SeekComponent<ISoundModule>().Share(out var module) != null)
+                SoundModules.Add(name, module);
         }
-        public void RemoveChild(string name)
+        public float JudgeTime { get => this.FocusTime; set => this.FocusTime = value; }
+        public void SetJudgeTime(float judgeTime) => SetFocusTime(judgeTime);
+        public void InitNote(float judgeTime, string judge_module_package, string judge_module_name, string sound_module_package, string sound_module_name)
         {
-            GameObject.Destroy(this.transform.Find(name));
+            SetJudgeTime(judgeTime);
+            LoadJudgeModule(judge_module_package, judge_module_name);
+            LoadSoundModule(sound_module_package, sound_module_name);
         }
     }
 }
