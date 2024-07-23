@@ -74,7 +74,7 @@ namespace Diagram
                 Type type = ReflectionExtension.Typen(class_name);
                 if (type != null)
                 {
-                    object obj = System.Activator.CreateInstance(type);
+                    object obj = type.IsStatic() ? null : System.Activator.CreateInstance(type);
                     core.MainUsingInstances.Add(class_name, obj);
                     foreach (var method in type.GetMethods())
                     {

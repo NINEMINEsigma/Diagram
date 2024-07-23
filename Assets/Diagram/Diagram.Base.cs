@@ -3906,7 +3906,7 @@ namespace Diagram
 #else   
         public static string persistentDataPath => Application.persistentDataPath;
         public static string userPath =>
-#if PLATFORM_STANDALONE_WIN
+#if UNITY_STANDALONE
             Application.streamingAssetsPath;
 #else
             Application.persistentDataPath;

@@ -8,13 +8,8 @@ namespace Diagram
 {
     public class LineScriptConfig : MonoBehaviour
     {
-        public string LauncherPath;
-        public string LauncherDir => Path.GetDirectoryName(LauncherPath);
-
-        private void Reset()
-        {
-            LauncherPath = Path.Combine(ToolFile.userPath, "LineScripts", "Launcher.ls");
-        }
+        public string LauncherPath => Path.Combine(ToolFile.userPath, "LineScripts", "Launcher.ls");
+        public string LauncherDir => Path.GetDirectoryName(LauncherPath); 
 
         private void Start()
         {
