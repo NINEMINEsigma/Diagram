@@ -122,12 +122,12 @@ namespace AD.Utility
             return vertexs;
         }
 
-        public static VertexEntry[] GenerateCurveMeshData(this ICustomCurveSource self, BuildNormalType normalType, Vector3 Normal,EaseCurve size)
+        public static VertexEntry[] GenerateCurveMeshData(this ICustomCurveSource self, BuildNormalType normalType, Vector3 Normal, EaseCurve size)
         {
             return GenerateCurveMeshData(self, normalType, Normal, size, 0, 1);
         }
 
-        public static VertexEntry[] GenerateCurveMeshData(this ICustomCurveSource self, BuildNormalType normalType, Vector3 Normal, EaseCurve sizeCurve,float headSize,float tailSize)
+        public static VertexEntry[] GenerateCurveMeshData(this ICustomCurveSource self, BuildNormalType normalType, Vector3 Normal, EaseCurve sizeCurve, float headSize, float tailSize)
         {
             Vector3[] line = self.CreateCurve();
             VertexEntry[] vertexs = new VertexEntry[line.Length];
@@ -144,10 +144,10 @@ namespace AD.Utility
 
         public static VertexEntry[] GenerateCurveMeshData(this ICustomCurveSource self, BuildNormalType normalType, Vector3 Normal, AnimationCurve size)
         {
-            return GenerateCurveMeshData(self,normalType,Normal, size, 0, 1);   
+            return GenerateCurveMeshData(self, normalType, Normal, size, 0, 1);
         }
 
-        public static VertexEntry[] GenerateCurveMeshData(this ICustomCurveSource self, BuildNormalType normalType, Vector3 Normal, AnimationCurve sizeCurve,float headSize,float tailSize)
+        public static VertexEntry[] GenerateCurveMeshData(this ICustomCurveSource self, BuildNormalType normalType, Vector3 Normal, AnimationCurve sizeCurve, float headSize, float tailSize)
         {
             Vector3[] line = self.CreateCurve();
             VertexEntry[] vertexs = new VertexEntry[line.Length];

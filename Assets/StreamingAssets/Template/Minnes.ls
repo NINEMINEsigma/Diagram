@@ -1,6 +1,6 @@
 //Minnes Project Config
 this -> LoadSong("E:/Diagram/Assets/StreamingAssets/Template/削除 (Sakuzyo) - Scheol.ogg")
-this -> WaitForPlay(0)
+this -> WaitForPlay(30)
 define @StartX = 0
 define @StartY = 0
 define @StartZ = 100
@@ -14,3 +14,4 @@ define @JudgeModulePackage = "None"
 define @JudgeModuleName = "None"
 define @SoundModulePackage = "None"
 define @SoundModuleName = "None"
+define @HoldTime = 1

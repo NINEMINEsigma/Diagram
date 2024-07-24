@@ -9,7 +9,7 @@ namespace Game
 {
     public class MinnesTimeline : LineBehaviour, IOnDependencyCompleting
     {
-        public AudioSourceController ASC => Minnes.MinnesInstance.ASC;
+        public AudioSystem ASC => Minnes.MinnesInstance.ASC;
         public float CurrnetTime => Minnes.MinnesInstance.CurrentTick;
         //public float Offset=>
         public RawImage TimeLineRawImage;
@@ -81,7 +81,8 @@ namespace Game
         {
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.T].wasPressedThisFrame)
             {
-                TimeLineRawImage.gameObject.SetActive(TimeLineRawImage.gameObject.activeSelf);
+                TimeLineRawImage.gameObject.SetActive(!TimeLineRawImage.gameObject.activeSelf);
+                TimeLineBar.gameObject.SetActive(!TimeLineBar.gameObject.activeSelf);
             }
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.Space].wasPressedThisFrame)
             {

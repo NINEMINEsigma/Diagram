@@ -711,7 +711,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64c2b770206633a4f91113417c1def86, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  LauncherPath: E:/Diagram/Assets/StreamingAssets\LineScripts\Launcher.ls
 --- !u!114 &796672065
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -898,8 +897,8 @@ MonoBehaviour:
   IsAutoSaveArchitecturesDebugLog: 0
   AutoSaveArchitecturesDebugLogTimeLimit: 60
   AutoSaveArchitecturesDebugLogTimeLimitCounter:
-    clockS: 638573502366674022
-    clockE: 638573502366674022
+    clockS: 638574433869515204
+    clockE: 638574433869515204
     clockU: 0
   _IsOnValidate: 1
   RecordPath: null

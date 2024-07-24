@@ -1,17 +1,18 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Diagram;
 using UnityEngine;
 
 namespace Game
 {
-    public interface IJudgeModule
+    public class IJudgeModule : LineBehaviour
     {
 
     }
 
-    public interface ISoundModule
-    {
-        
+    public class ISoundModule : LineBehaviour
+    { 
+    
     }
 
     public class NoteGenerater : MinnesGenerater
@@ -21,7 +22,7 @@ namespace Game
             MinnesGenerater.GenerateAction.Add("Note", () => Resources.Load<Note>("NoteBase").PrefabInstantiate());
         }
 
-        public NoteGenerater() : base("Note")
+        public NoteGenerater() : base("Note","Untag")
         {
             target.name = "NoteBase";
             target.TimeListener = new();
@@ -49,6 +50,29 @@ namespace Game
             SetJudgeTime(judgeTime);
             LoadJudgeModule(judge_module_package, judge_module_name);
             LoadSoundModule(sound_module_package, sound_module_name);
+        }
+
+        public static Note FocusNote;
+        private Material focusBoundLight;
+        public Material FocusBoundLight
+        {
+            get
+            {
+                if (focusBoundLight == null)
+                    focusBoundLight = this.meshRenderer.materials[1];
+                return focusBoundLight;
+            }
+        }
+
+        private void Update()
+        {
+            FocusBoundLight.SetFloat("_IsOpen", this == FocusNote ? 1 : 0);
+        }
+
+        private void OnMouseDown()
+        {
+            if(this != FocusNote)  FocusNote = this;
+            else FocusNote = null;
         }
     }
 }

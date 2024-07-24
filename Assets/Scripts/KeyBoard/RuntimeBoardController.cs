@@ -11,10 +11,10 @@ namespace Utility
 
         private void Update()
         {
-            if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.H].wasReleasedThisFrame)
+            if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.H].wasPressedThisFrame)
             {
-                Hierarchy.gameObject.SetActive(Hierarchy.gameObject.activeSelf);
-                Inspector.gameObject.SetActive(Inspector.gameObject.activeSelf);
+                Hierarchy.gameObject.SetActive(!Hierarchy.gameObject.activeSelf);
+                Inspector.gameObject.SetActive(!Inspector.gameObject.activeSelf);
             }
         }
     }

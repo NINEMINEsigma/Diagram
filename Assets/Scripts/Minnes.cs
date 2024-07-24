@@ -7,13 +7,14 @@ using AD.UI;
 using AD.Utility;
 using Diagram;
 using Diagram.Arithmetic;
-using Diagram.Message;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Game
 {
     public class Minnes : LineBehaviour
     {
+        public static float PastTime = 0;
         public void LoadScene(string package, string sceneName)
         {
             using ToolFile file = new(package, false, true, false);
@@ -21,19 +22,19 @@ namespace Game
             sceneName.LoadSceneAsync(UnityEngine.SceneManagement.LoadSceneMode.Additive);//.MarkCompleted
         }
         public void SetSpeed(float speed) => ProjectSpeed = speed;
-        public AudioSourceController ASC;
+        public AudioSystem ASC;
         public void LoadSong(string song)
         {
-            ASC.LoadOnUrl(song, AudioSourceController.GetAudioType(song), true);
+            ASC.LoadOnUrl(song, AudioSourceController.GetAudioType(song));
         }
         public void WaitForPlay(float time)
         {
-            StartCoroutine(IWaitForPlay());
-            IEnumerator IWaitForPlay()
+            StartCoroutine(IWaitForPlay(time));
+            IEnumerator IWaitForPlay(float time)
             {
-                yield return new WaitForSeconds(time);
                 while (ASC.CurrentClip == null) yield return null;
                 ASC.Play();
+                ASC.CurrentTime = -time;
             }
         }
         public void PlaySong()
@@ -54,7 +55,7 @@ namespace Game
         }
         public void SetBPM(float bpm) => ProjectBPM = bpm;
         public void SetProject(string projectName)
-        { 
+        {
             ProjectName = projectName;
             LineScript.BinPath = Path.Combine(ToolFile.userPath, ProjectName);
         }
@@ -78,6 +79,7 @@ namespace Game
             ArchitectureDiagram.RegisterArchitecture(this);
             MinnesInstance = this;
             Game.NoteGenerater.InitNoteGenerater();
+            Game.LongNoteBodyGenerater.InitNoteGenerater();
             {
                 using ToolFile file = new(Path.Combine(ToolFile.userPath, "MinnesConfig.ls"), true, true, false);
                 new LineScript(("this", this)).Run(file.GetString(false, System.Text.Encoding.UTF8));
@@ -89,11 +91,15 @@ namespace Game
             {
                 item.gameObject.SetActive(true);
             }
+
+            ADGlobalSystem.instance.OnSceneEnd.AddListener(this.ASC.PrepareToOtherScene);
+
             StartCoroutine(Wait());
             IEnumerator Wait()
             {
                 while (ASC.CurrentClip == null)
                     yield return null;
+                ASC.CurrentTime = PastTime;
                 this.Architecture<Minnes>().Register<StartRuntimeCommand>(new BaseWrapper.Model(new StartRuntimeCommand()));
             }
         }
@@ -142,39 +148,55 @@ namespace Game
         public float CurrentTick
         {
             get => RawPastTick;
-            set
-            {
-                if (RawCurrentTick != value)
-                {
-                    RawCurrentTick = value;
-                }
-            }
+            set => RawCurrentTick = value;
         }
         public float CurrentStats => RawCurrentTick - RawPastTick;
         public List<MinnesController> AllControllers = new();
         private void Update()
         {
+            if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.R].wasPressedThisFrame)
+            {
+                ADGlobalSystem.instance.OnEnd();
+                return;
+            }    
             if (ASC.CurrentClip == null) return;
             CurrentTick = ASC.CurrentTime;
             "CurrentTick".InsertVariable(CurrentTick);
             foreach (var item in AllControllers)
             {
-                item.TimeUpdate(CurrentTick, CurrentStats);
+                try
+                {
+                    item.TimeUpdate(CurrentTick, CurrentStats);
+                }
+                catch(Exception ex)
+                {
+                    Debug.LogException(ex);
+                }
             }
 
             float delta = Mathf.Abs(RawCurrentTick - RawPastTick);
             this.RawPastTick =
                 delta > Time.deltaTime * this.RawLimitTick
                 ? (this.RawCurrentTick - this.RawPastTick > 0
-                    ? this.RawPastTick + delta * 0.33f
-                    : this.RawPastTick - delta * 0.33f)
+                    ? this.RawPastTick + delta * 0.2f
+                    : this.RawPastTick - delta * 0.2f)
                 : this.RawCurrentTick;
+            PastTime = ASC.CurrentTime;
+        }
+
+        public Text InfoBarText;
+
+        public void SetInfo(string str)
+        {
+            InfoBarText.text = str;
         }
     }
 
     [Serializable]
-    public class MinnesController:LineBehaviour
+    public class MinnesController : LineBehaviour
     {
+        public string MyMinnesID;
+
         public static IEnumerator WaitForSomeTime(Action action)
         {
             yield return null;
@@ -182,8 +204,8 @@ namespace Game
             yield return null;
             action.Invoke();
         }
-         
-        public float FocusTime; 
+
+        public float FocusTime;
         public void SetFocusTime(float time) => this.FocusTime = time;
 
         virtual protected void OnEnable()
@@ -196,13 +218,26 @@ namespace Game
         {
             TimeListener = null;
             Minnes.MinnesInstance.AllControllers.Remove(this);
-        } 
+        }
 
         public void RegisterOnTimeLine()
         {
             Minnes.MinnesInstance.AllControllers.Add(this);
         }
 
+        public void OnMinnesInspector()
+        {
+            if (this.MyMinnesID == null || this.MyMinnesID.Length == 0)
+            {
+                OnMinnesInspectorYouCanntEdit();
+            }
+            else
+            {
+                OnMinnesInspectorV();
+            }
+        }
+        protected void OnMinnesInspectorYouCanntEdit() { }
+        protected virtual void OnMinnesInspectorV() { }
     }
 
     public class MinnesGenerater
@@ -211,9 +246,20 @@ namespace Game
 
         public MinnesController target;
 
-        public MinnesGenerater(string class_name)
+        public MinnesGenerater(string class_name,string minnesID)
         {
             target = GenerateAction[class_name].Invoke();
+            target.MyMinnesID = minnesID;
+        }
+
+        public void SetID(string ID)
+        {
+            target.MyMinnesID = ID;
+        }
+
+        public void SetName(string name)
+        {
+            target.name = name;
         }
     }
 }

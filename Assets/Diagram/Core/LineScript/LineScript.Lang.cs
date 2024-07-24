@@ -79,23 +79,16 @@ namespace Diagram
                     foreach (var method in type.GetMethods())
                     {
                         core.CreatedSymbols.TryAdd(method.Name, new FunctionSymbolWord(method.Name, class_name, new(method, method.GetParameters().Length)));
-                        core.CreatedSymbols.Add(class_name + "." + method.Name, new FunctionSymbolWord(method.Name, core.MainUsingInstances[class_name], new(method, method.GetParameters().Length)));
+                        string method_name = "";
+                        foreach (var parameter in method.GetParameters())
+                        {
+                            method_name += "_" + parameter.ParameterType.Name;
+                        }
+                        core.CreatedSymbols.Add(class_name + "." + method.Name + method_name, 
+                            new FunctionSymbolWord(method.Name, core.MainUsingInstances[class_name], new(method, method.GetParameters().Length)));
                     }
                     return next;
                 }
-                //foreach (var assembly in Diagram.ReflectionExtension.GetAssemblies())
-                //{
-                //    if (assembly.CreateInstance(class_name, out object obj))
-                //    {
-                //        core.MainUsingInstances.Add(class_name, obj);
-                //        foreach (var method in obj.GetType().GetMethods())
-                //        {
-                //            core.CreatedSymbols.TryAdd(method.Name, new FunctionSymbolWord(method.Name, class_name, new(method, method.GetParameters().Length)));
-                //            core.CreatedSymbols.Add(class_name + "." + method.Name, new FunctionSymbolWord(method.Name, core.MainUsingInstances[class_name], new(method, method.GetParameters().Length)));
-                //        }
-                //        return true;
-                //    }
-                //}
                 throw new ParseException(class_name + " is cannt found");
             }
         }
@@ -433,6 +426,28 @@ namespace Diagram
                 }
                 return this;
             }
+
+            public void OpenCall(LineScript core,string scriptStrings, params (string, object)[] args)
+            {
+                var tempScriptNames = this.scriptNames.ToList();
+                var tempArgs = this.args.ToList();
+                this.scriptNames = new();
+                this.args = new();
+                is_args_import = false;
+                LineScript subScript = new LineScript
+                {
+                    CreatedInstances = new(core.CreatedInstances),
+                    CreatedSymbols = new(core.CreatedSymbols),
+                    MainUsingInstances = new(core.MainUsingInstances)
+                };
+                foreach (var arg in args)
+                {
+                    subScript.CreatedInstances[arg.Item1] = arg.Item2;
+                }
+                subScript.Run(scriptStrings);
+                this.scriptNames = tempScriptNames;
+                this.args = tempArgs;
+            }
         }
     }
 
@@ -611,6 +626,7 @@ namespace Diagram
 
     public class ReferenceSymbolWord : SymbolWord
     {
+        public override bool AllowLinkKeyWord => true;
         public override bool AllowLinkSymbolWord => true;
         public override bool AllowLinkLiteralValue => true;
         public FunctionSymbolWord Functional;
@@ -652,7 +668,7 @@ namespace Diagram
                 }
                 else if (next == null)
                 {
-                    //core.CreatedInstances["@result"] = ReferenceInstance;
+                    core.CreatedInstances["@result"] = ReferenceInstance;
                     return next;
                 }
                 throw new ParseException("Unknown Parse way");

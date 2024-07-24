@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -86,7 +87,14 @@ namespace Diagram
         }
         public void Run(string ls)
         {
-            CoreRun(ls.Split('\n'));
+            try
+            {
+                CoreRun(ls.Split('\n'));
+            }
+            catch(Exception ex)
+            {
+                Debug.LogException(ex);
+            }
         }
         private void CoreRun(string[] ls)
         {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Diagram.Arithmetic;
 using Diagram.Message;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace Diagram
@@ -28,7 +29,7 @@ namespace Diagram
             }
         }
 
-        public void MakeDelay(int time, string expression)
+        public LineBehaviour MakeDelay(int time, string expression)
         {
             TimeListener.Add($"Delay-{time}-{expression}", (float timex, float statsx) =>
             {
@@ -37,6 +38,7 @@ namespace Diagram
                     new LineScript(("this", this), ("time", timex), ("stats", statsx)).Run(expression);
                 }
             });
+            return this;
         }
         public void InitPosition(float x, float y, float z)
         {
@@ -51,7 +53,7 @@ namespace Diagram
             this.transform.localScale = new Vector3(x, y, z);
         }
 
-        public void MakeMovement(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
+        public LineBehaviour MakeMovement(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
         {
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(x, y, z), to = new(x2, y2, z2);
@@ -60,8 +62,9 @@ namespace Diagram
                 if (time < startTime || time > endTime) return;
                 this.transform.position = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
             });
+            return this;
         }
-        public void MakeRotating(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
+        public LineBehaviour MakeRotating(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
         {
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(x, y, z), to = new(x2, y2, z2);
@@ -70,8 +73,9 @@ namespace Diagram
                 if (time < startTime || time > endTime) return;
                 this.transform.eulerAngles = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
             });
+            return this;
         }
-        public void MakeScale(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
+        public LineBehaviour MakeScale(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
         {
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(x, y, z), to = new(x2, y2, z2);
@@ -80,8 +84,9 @@ namespace Diagram
                 if (time < startTime || time > endTime) return;
                 this.transform.localScale = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
             });
+            return this;
         }
-        public void MakeRelativeMovement(float startTime, float endTime, float x, float y, float z, int easeType)
+        public LineBehaviour MakeRelativeMovement(float startTime, float endTime, float x, float y, float z, int easeType)
         {
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(transform.position.x, transform.position.y, transform.position.z);
@@ -91,8 +96,9 @@ namespace Diagram
                 if (time < startTime || time > endTime) return;
                 this.transform.position = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
             });
+            return this;
         }
-        public void MakeRelativeRotating(float startTime, float endTime, float x, float y, float z, int easeType)
+        public LineBehaviour MakeRelativeRotating(float startTime, float endTime, float x, float y, float z, int easeType)
         {
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(transform.eulerAngles.x, transform.eulerAngles.y, transform.eulerAngles.z);
@@ -102,8 +108,9 @@ namespace Diagram
                 if (time < startTime || time > endTime) return;
                 this.transform.rotation = Quaternion.Lerp(Quaternion.Euler(from), Quaternion.Euler(to), eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
             });
+            return this;
         }
-        public void MakeRelativeScale(float startTime, float endTime, float x, float y, float z, int easeType)
+        public LineBehaviour MakeRelativeScale(float startTime, float endTime, float x, float y, float z, int easeType)
         {
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(transform.localScale.x, transform.localScale.y, transform.localScale.z);
@@ -113,12 +120,13 @@ namespace Diagram
                 if (time < startTime || time > endTime) return;
                 this.transform.localScale = Vector3.Lerp(from, to, eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
             });
+            return this;
         }
 
-        public MeshRenderer meshRenderer;
-        public MeshFilter meshFilter;
-        public MeshRenderer MyRenderer => meshRenderer ??= this.SeekComponent<MeshRenderer>();
-        public MeshFilter MyMeshFilter => meshFilter ??= this.SeekComponent<MeshFilter>();
+        [SerializeField] protected MeshRenderer meshRenderer;
+        [SerializeField] protected MeshFilter meshFilter;
+        public MeshRenderer MyRenderer => meshRenderer = meshRenderer != null ? meshRenderer : this.SeekComponent<MeshRenderer>();
+        public MeshFilter MyMeshFilter => meshFilter = meshFilter != null ? meshFilter : this.SeekComponent<MeshFilter>();
         public Mesh MyMesh { get => MyMeshFilter.mesh; set => MyMeshFilter.mesh = value; }
         public void LoadMesh(string package, string name)
         {
@@ -158,6 +166,21 @@ namespace Diagram
             GameObject.Destroy(this.transform.Find(name));
         }
 
+
+        public Component LAddComponent(string type)
+        {
+            Type componentType = ReflectionExtension.Typen(type);
+            if (componentType == null) return null;
+            return gameObject.AddComponent(componentType);
+        }
+
+        public Component LGetComponent(string type)
+        {
+            Type componentType = ReflectionExtension.Typen(type);
+            if (componentType == null) return null;
+            return gameObject.GetComponent(componentType);
+        }
+
         public void Log(string message)
         {
             Debug.Log(message);
@@ -175,6 +198,31 @@ namespace Diagram
         public ResourceLineBehaviourLoader(string path)
         {
             target = Resources.Load<LineBehaviour>(path);
+        }
+    }
+
+    public class EmptyGameObjectGenerator
+    {
+        public LineBehaviour target;
+
+        public EmptyGameObjectGenerator()
+        {
+            target = new GameObject().AddComponent<LineBehaviour>();
+            target.name = "EmptyLineMono";
+        }
+
+        public Component AddComponent(string type)
+        {
+            Type componentType = ReflectionExtension.Typen(type);
+            if (componentType == null) return null;
+            return target.gameObject.AddComponent(componentType);
+        }
+
+        public Component GetComponent(string type)
+        {
+            Type componentType = ReflectionExtension.Typen(type);
+            if (componentType == null) return null;
+            return target.gameObject.GetComponent(componentType);
         }
     }
 
