@@ -17,6 +17,7 @@ using UnityEngine.Events;
 using UnityEngine.Networking;
 using static Diagram.ReflectionExtension;
 using Debug = UnityEngine.Debug;
+using Vector3 = UnityEngine.Vector3;
 
 namespace Diagram
 {
@@ -4944,6 +4945,21 @@ namespace Diagram
 
         public void Reset()
         {
+        }
+    }
+
+    public static class RectTransformExtension
+    {
+        /// <summary>
+        /// 左下，左上，右上，右下
+        /// </summary>
+        /// <param name="rect"></param>
+        /// <returns></returns>
+        public static Vector3[] GetRect(this RectTransform rect)
+        {
+            Vector3[] corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            return corners;
         }
     }
 

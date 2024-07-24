@@ -99,8 +99,8 @@ namespace Game
             {
                 while (ASC.CurrentClip == null)
                     yield return null;
-                ASC.CurrentTime = PastTime;
                 this.Architecture<Minnes>().Register<StartRuntimeCommand>(new BaseWrapper.Model(new StartRuntimeCommand()));
+                ASC.CurrentTime = PastTime;
             }
         }
         private void OnDestroy()
@@ -108,39 +108,6 @@ namespace Game
             ArchitectureDiagram.UnregisterArchitecture<Minnes>();
             MinnesGenerater.GenerateAction.Clear();
         }
-
-        /*
-        [SerializeField] private int RawPastTick = 0;
-        [SerializeField] private int RawCurrentTick = 0;
-        public int CurrentTick
-        {
-            get => RawPastTick;
-            set
-            {
-                if (RawCurrentTick != value)
-                {
-                    RawPastTick = RawCurrentTick;
-                    RawCurrentTick = value;
-                }
-            }
-        }
-        public int CurrentStats => RawCurrentTick - RawPastTick;
-        public List<MinnesController> AllControllers = new();
-        private void Update()
-        {
-            //if (!IsDirty) return;  
-            if (ASC.CurrentClip == null) return;
-            CurrentTick = (int)(ASC.CurrentTime * (60 / ProjectBPM) * 64);
-            "CurrentTick".InsertVariable(CurrentTick);
-            while (RawPastTick != RawCurrentTick)
-            {
-                foreach (var item in AllControllers)
-                {
-                    item.TimeUpdate(CurrentTick, CurrentStats);
-                }
-                RawPastTick += RawCurrentTick > RawPastTick ? 1 : -1;
-            }
-        }*/
 
         [SerializeField] private float RawPastTick = 0;
         [SerializeField] private float RawCurrentTick = 0;

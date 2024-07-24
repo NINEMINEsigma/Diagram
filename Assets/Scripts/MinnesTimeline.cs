@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using AD.UI;
 using Diagram;
@@ -9,6 +8,8 @@ namespace Game
 {
     public class MinnesTimeline : LineBehaviour, IOnDependencyCompleting
     {
+        public static MinnesTimeline instance;
+
         public AudioSystem ASC => Minnes.MinnesInstance.ASC;
         public float CurrnetTime => Minnes.MinnesInstance.CurrentTick;
         //public float Offset=>
@@ -17,6 +18,12 @@ namespace Game
         public RawImage BarlineRawImage;
         public ModernUIFillBar TimeLineBar;
         public ModernUIButton Stats;
+
+
+        public void SetTimeDisplayLength(float length)
+        {
+            this.Architecture<Minnes>().GetController<MinnesTimeline>().To<MinnesTimeline>().TimeLineDisplayLength = length;
+        }
 
         private List<Color[]> BarLineColorsList;
         private int BarColorPointer = 0;
@@ -47,6 +54,7 @@ namespace Game
 
         public void OnDependencyCompleting()
         {
+            instance = this;
             BarLineColorsList = new()
             {
                 new Color[]{ Color.white},
@@ -72,6 +80,7 @@ namespace Game
                     ASC.CurrentTime = T;
             });
             Stats.ButtonText = Minnes.ProjectName;
+            LineScript.RunScript("TimeLine.ls", ("this", this));
         }
 
         private void Start()
