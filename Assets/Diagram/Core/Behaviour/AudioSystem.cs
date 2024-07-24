@@ -12,7 +12,7 @@ namespace Diagram
     public class AudioSystem : LineBehaviour
     {
         #region Attribute
-        private AudioSource source;
+        [SerializeField] private AudioSource source;
         public AudioSource Source
         {
             get

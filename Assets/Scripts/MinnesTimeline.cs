@@ -16,6 +16,7 @@ namespace Game
         public float TimeLineDisplayLength = 3;
         public RawImage BarlineRawImage;
         public ModernUIFillBar TimeLineBar;
+        public ModernUIButton Stats;
 
         private List<Color[]> BarLineColorsList;
         private int BarColorPointer = 0;
@@ -70,6 +71,7 @@ namespace Game
                 if (ASC.IsPlay == false)
                     ASC.CurrentTime = T;
             });
+            Stats.ButtonText = Minnes.ProjectName;
         }
 
         private void Start()
@@ -83,6 +85,7 @@ namespace Game
             {
                 TimeLineRawImage.gameObject.SetActive(!TimeLineRawImage.gameObject.activeSelf);
                 TimeLineBar.gameObject.SetActive(!TimeLineBar.gameObject.activeSelf);
+                Stats.gameObject.SetActive(!Stats.gameObject.activeSelf);
             }
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.Space].wasPressedThisFrame)
             {

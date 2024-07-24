@@ -4543,7 +4543,7 @@ namespace Diagram
 
         public static T SeekComponent<T>(this GameObject self) where T : class
         {
-            foreach (var item in self.GetComponents<MonoBehaviour>())
+            foreach (var item in self.GetComponents<Component>())
             {
                 if (item.As<T>(out var result))
                 {

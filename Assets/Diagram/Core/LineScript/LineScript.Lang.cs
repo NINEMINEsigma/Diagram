@@ -417,6 +417,7 @@ namespace Diagram
                         if (file)
                             subScript.Run(file.GetString(false, System.Text.Encoding.UTF8));
                     }
+                    core.SubLineScript(subScript);
                 } 
                 else
                 {
