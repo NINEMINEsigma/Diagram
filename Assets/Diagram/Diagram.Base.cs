@@ -3202,10 +3202,12 @@ namespace Diagram
             {
                 if (IsKeepToolFileControl)
                 {
+                    FileStream.SetLength(0);
                     FileStream.Write(FileData, 0, FileData.Length);
                 }
                 else
                 {
+                    File.Create(FilePath);
                     File.WriteAllBytes(FilePath, FileData);
                 }
             }
@@ -3256,9 +3258,9 @@ namespace Diagram
             if (!Directory.Exists(dir_name))
             {
                 Directory.CreateDirectory(dir_name);
-                return false;
+                return true;
             }
-            else return true;
+            else return false;
         }
 
         public static void ReCreateDirectroryOfFile(string filePath, bool recursive = true)
@@ -3287,7 +3289,7 @@ namespace Diagram
             }
             else
             {
-                return Directory.GetParent(dir_name);
+                return Directory.GetParent(filePath);
             }
         }
 

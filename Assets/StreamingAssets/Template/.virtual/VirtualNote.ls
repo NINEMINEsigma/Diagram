@@ -1,0 +1,8 @@
+note -> InitPosition(@StartX,@StartY,@StartZ)
+note -> InitScale(@InitScaleX,@InitScaleY,@InitScaleZ)
+note -> MakeMovement(@StartTime,@JudgeTime,@StartX,@StartY,@StartZ,@EndX,@EndY,@EndZ,0)
+note -> MakeMovement(@JudgeTime,@SongEndTime,@EndX,@EndY,@EndZ,@EndX,@EndY,@EndZ,0)
+note -> MakeScale(@StartTime,@JudgeTime,@InitScaleX,@InitScaleY,@InitScaleZ,@InitScaleX,@InitScaleY,@InitScaleZ,0)
+note -> MakeScale(@JudgeTime,@SongEndTime,0,0,0,0,0,0,0)
+note -> InitNote(@JudgeTime,@JudgeModulePackage,@JudgeModuleName,@SoundModulePackage,@SoundModuleName)
+note -> RegisterOnTimeLine()

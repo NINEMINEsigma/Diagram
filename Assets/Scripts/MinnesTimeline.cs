@@ -54,21 +54,24 @@ namespace Game
 
         public void OnDependencyCompleting()
         {
-            instance = this;
             BarLineColorsList = new()
             {
                 new Color[]{ Color.white},
                 new Color[]{
-                    Color.white,Color.blue,
-                    Color.red,Color.blue},
+                    Color.white
+                    ,Color.blue,
+                    Color.red
+                    ,Color.blue},
                 new Color[]{
-                    Color.white, Color.green, Color.blue, Color.green,
-                    Color.red, Color.green, Color.blue, Color.green },
+                    Color.white, Color.green
+                    , Color.blue, Color.green,
+                    Color.red, Color.green
+                    , Color.blue, Color.green },
                 new Color[]{
-                    Color.white, Color.green, Color.yellow, Color.green,
-                    Color.blue, Color.green, Color.yellow, Color.green,
-                    Color.red, Color.green, Color.yellow, Color.green,
-                    Color.blue, Color.green, Color.yellow, Color.green }
+                    Color.white,Color.yellow,Color.green, Color.yellow,
+                    Color.blue, Color.yellow,Color.green, Color.yellow,
+                    Color.red,  Color.yellow, Color.green,Color.yellow,
+                    Color.blue, Color.yellow,Color.green, Color.yellow,}
             };
             TimeLineRawImage.MainTex = AudioSourceController.BakeAudioWaveformVertical(ASC.CurrentClip, 60, 300, 4000);
             BarlineRawImage.MainTex = BakeAudioWaveformBarline(Minnes.ProjectBPM, ASC.CurrentClip.length, 300, 4000, BarLineColorsList[BarColorPointer]);
@@ -85,6 +88,7 @@ namespace Game
 
         private void Start()
         {
+            instance = this;
             this.RegisterControllerOn(typeof(Minnes), new(), typeof(Minnes.StartRuntimeCommand));
         }
 
@@ -92,9 +96,22 @@ namespace Game
         {
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.T].wasPressedThisFrame)
             {
-                TimeLineRawImage.gameObject.SetActive(!TimeLineRawImage.gameObject.activeSelf);
-                TimeLineBar.gameObject.SetActive(!TimeLineBar.gameObject.activeSelf);
-                Stats.gameObject.SetActive(!Stats.gameObject.activeSelf);
+                if (Keyboard.current[Key.A].isPressed)
+                {
+                    TimeLineRawImage.transform.As<RectTransform>().SetInsetAndSizeFromParentEdge(RectTransform.Edge.Left, 0, 1600);
+                    TimeLineTable.instance.rects = Diagram.RectTransformExtension.GetRect(TimeLineTable.instance.transform.As<RectTransform>());
+                }
+                else if (Keyboard.current[Key.LeftAlt].isPressed)
+                {
+                    TimeLineRawImage.transform.As<RectTransform>().SetInsetAndSizeFromParentEdge(RectTransform.Edge.Left, 0, 300 );
+                    TimeLineTable.instance.rects = Diagram.RectTransformExtension.GetRect(TimeLineTable.instance.transform.As<RectTransform>());
+                }
+                else
+                {
+                    TimeLineRawImage.gameObject.SetActive(!TimeLineRawImage.gameObject.activeSelf);
+                    TimeLineBar.gameObject.SetActive(!TimeLineBar.gameObject.activeSelf);
+                    Stats.gameObject.SetActive(!Stats.gameObject.activeSelf);
+                }
             }
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.Space].wasPressedThisFrame)
             {
@@ -104,6 +121,7 @@ namespace Game
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.S].wasPressedThisFrame)
             {
                 ASC.Stop();
+                ASC.CurrentTime = 0;
                 this.TimeLineBar.IsLockByScript = ASC.IsPlay;
             }
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.P].wasPressedThisFrame)

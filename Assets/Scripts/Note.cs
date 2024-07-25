@@ -31,6 +31,13 @@ namespace Game
 
     public class Note : MinnesController
     {
+        public override void ReloadLineScript()
+        {
+            if (TimeListener == null) return;
+            if (MyScriptName == null || MyScriptName.Length == 0) return;
+            LineScript.RunScript(MyScriptName, ("this", this), ("note", this));
+        }
+
         public Dictionary<string, IJudgeModule> JudgeModules = new();
         public Dictionary<string, ISoundModule> SoundModules = new();
         public void LoadJudgeModule(string package, string name)

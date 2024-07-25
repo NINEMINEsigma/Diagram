@@ -22,6 +22,7 @@ namespace Game
             sceneName.LoadSceneAsync(UnityEngine.SceneManagement.LoadSceneMode.Additive);//.MarkCompleted
         }
         public void SetSpeed(float speed) => ProjectSpeed = speed;
+        public void SetDisplayMaxLength(float max) => ProjectNoteMaxDisplayLength = max;
         public AudioSystem ASC;
         public void LoadSong(string song)
         {
@@ -66,9 +67,11 @@ namespace Game
         }
 
         public static string ProjectName = "Test";
-        public static string ProjectPath = Path.Combine(ToolFile.userPath, ProjectName);
+        public static string ProjectPath => Path.Combine(ToolFile.userPath, ProjectName);
         public static float ProjectBPM = 60;
         public static float ProjectSpeed = 1;
+        public static float ProjectNoteDefaultDisplayLength => ProjectNoteMaxDisplayLength / ProjectSpeed;
+        public static float ProjectNoteMaxDisplayLength = 3;
         public static Minnes MinnesInstance;
 
         public class StartRuntimeCommand { }
@@ -85,7 +88,7 @@ namespace Game
                 new LineScript(("this", this)).Run(file.GetString(false, System.Text.Encoding.UTF8));
             }
             {
-                LineScript.RunScript("Minnes.ls", ("this", this)).ReadAndRun(ProjectName + ".ls");
+                LineScript.RunScript("Minnes.ls", ("this", this)).ReadAndRun("MinnesNoteDefine.ls").ReadAndRun(ProjectName + ".ls");
             }
             foreach (var item in EnableContronller)
             {
@@ -123,10 +126,11 @@ namespace Game
         {
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.R].wasPressedThisFrame)
             {
+                PastTime = CurrentTick;
                 ADGlobalSystem.instance.OnEnd();
                 return;
             }    
-            if (ASC.CurrentClip == null) return;
+            if (ASC.CurrentClip == null) return; 
             CurrentTick = ASC.CurrentTime;
             "CurrentTick".InsertVariable(CurrentTick);
             foreach (var item in AllControllers)
@@ -148,7 +152,6 @@ namespace Game
                     ? this.RawPastTick + delta * 0.2f
                     : this.RawPastTick - delta * 0.2f)
                 : this.RawCurrentTick;
-            PastTime = ASC.CurrentTime;
         }
 
         public Text InfoBarText;
@@ -191,6 +194,10 @@ namespace Game
         {
             Minnes.MinnesInstance.AllControllers.Add(this);
         }
+        public void UnregisterOnTimeLine()
+        {
+            Minnes.MinnesInstance.AllControllers.Remove(this);
+        }
 
         public void OnMinnesInspector()
         {
@@ -204,7 +211,7 @@ namespace Game
             }
         }
         protected void OnMinnesInspectorYouCanntEdit() { }
-        protected virtual void OnMinnesInspectorV() { }
+        protected virtual void OnMinnesInspectorV() { } 
     }
 
     public class MinnesGenerater

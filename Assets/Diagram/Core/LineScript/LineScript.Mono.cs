@@ -10,10 +10,21 @@ namespace Diagram
     [Serializable]
     public class LineBehaviour : MonoBehaviour
     {
+        private RectTransform _rectTransform;
+        public RectTransform MyRectTransform
+        {
+            get
+            {
+                if (_rectTransform == null)
+                    _rectTransform = this.transform as RectTransform;
+                return _rectTransform;
+            }
+        }
+
         public string MyScriptName;
         public void SetTargetScript(string path) => MyScriptName = path;
 
-        public void ReloadLineScript()
+        public virtual void ReloadLineScript()
         {
             if (TimeListener == null) return;
             if (MyScriptName == null || MyScriptName.Length == 0) return;

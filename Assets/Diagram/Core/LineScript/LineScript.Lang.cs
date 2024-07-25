@@ -345,7 +345,7 @@ namespace Diagram
                 {
                     if (assembly.CreateInstance(classname, false, ReflectionExtension.DefaultBindingFlags, null, constructorslist, null, null).Share(out var obj) != null)
                     {
-                        core.CreatedInstances.Add(name, obj);
+                        core.CreatedInstances[name] = obj;
                         break;
                     }
                 }
@@ -386,16 +386,7 @@ namespace Diagram
 
             public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
-                if(next is import_Key)
-                {
-                    is_args_import = true;
-                    return this;
-                }
-                else if (is_args_import == false)
-                {
-                    scriptNames.Add(next.As<SourceValueWord>().Source);
-                }
-                else if (next == null)
+                if (next == null)
                 {
                     LineScript subScript = new LineScript
                     {
@@ -418,6 +409,18 @@ namespace Diagram
                             subScript.Run(file.GetString(false, System.Text.Encoding.UTF8));
                     }
                     core.SubLineScript(subScript);
+                }
+                else if(next is import_Key)
+                {
+                    is_args_import = true;
+                    return this;
+                }
+                else if (is_args_import == false)
+                {
+                    if (next.As<SourceValueWord>(out var svw))
+                        scriptNames.Add(svw.Source);
+                    else
+                        throw new ParseException("Need Path of LineScript, but current is " + next.GetType().Name);
                 } 
                 else
                 {
