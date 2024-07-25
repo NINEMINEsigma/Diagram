@@ -133,11 +133,12 @@ namespace Game
             if (ASC.CurrentClip == null) return; 
             CurrentTick = ASC.CurrentTime;
             "CurrentTick".InsertVariable(CurrentTick);
+            float t = CurrentTick, s = CurrentStats;
             foreach (var item in AllControllers)
             {
                 try
                 {
-                    item.TimeUpdate(CurrentTick, CurrentStats);
+                    item.TimeUpdate(ref t, ref s);
                 }
                 catch(Exception ex)
                 {

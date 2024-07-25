@@ -1,11 +1,8 @@
-using System.Collections;
-using System.Collections.Generic;
 using System.IO;
-using AD.UI;
 using AD.Utility;
 using Diagram;
 using UnityEngine;
-using UnityEngine.EventSystems; 
+using UnityEngine.EventSystems;
 
 namespace Game
 {
@@ -23,8 +20,10 @@ namespace Game
                     file.ReplaceAllData((
                         "note -> InitPosition(@StartX,@StartY,@StartZ)\n" +
                         "note -> InitScale(@InitScaleX,@InitScaleY,@InitScaleZ)\n" +
+                        "note -> MakeMovement(0,@StartTime,@StartX,@StartY,@StartZ,@StartX,@StartY,@StartZ,0)\n" +
                         "note -> MakeMovement(@StartTime,@JudgeTime,@StartX,@StartY,@StartZ,@EndX,@EndY,@EndZ,0)\n" +
                         "note -> MakeMovement(@JudgeTime,@SongEndTime,@EndX,@EndY,@EndZ,@EndX,@EndY,@EndZ,0)\n" +
+                        "note -> MakeScale(0,@StartTime,0,0,0,0,0,0,0)\n" +
                         "note -> MakeScale(@StartTime,@JudgeTime,@InitScaleX,@InitScaleY,@InitScaleZ,@InitScaleX,@InitScaleY,@InitScaleZ,0)\n" +
                         "note -> MakeScale(@JudgeTime,@SongEndTime,0,0,0,0,0,0,0)\n" +
                         "note -> InitNote(@JudgeTime,@JudgeModulePackage,@JudgeModuleName,@SoundModulePackage,@SoundModuleName)\n" +
@@ -76,26 +75,36 @@ namespace Game
 
         public static void SetupNote(Note note,float startTime,float endTime,float x,float y,float z,float x2,float y2,float z2)
         {
-            note.TimeListener = new();
-            note.SetJudgeTime(endTime);
+            note.UnregisterOnTimeLine();
+            note.InitPosition(x, y, z);
+            note.InitScale(1, 1, 1);
+            note.MakeMovement(0, startTime, x, y, z, x2, y2, z2, 0);
             note.MakeMovement(startTime, endTime, x, y, z, x2, y2, z2, 0);
+            note.MakeMovement(endTime, Minnes.MinnesInstance.ASC.CurrentClip.length, x2, y2, z2, x2, y2, z2, 0);
+            note.MakeScale(0,startTime, 0, 0, 0, 0, 0, 0, 0);
+            note.MakeScale(startTime, endTime, 1, 1, 1, 1, 1, 1, 0);
+            note.MakeScale(startTime, endTime, 0, 0, 0, 0, 0, 0, 0);
+            note.InitNote(endTime, "None", "None", "None", "None");
             note.RegisterOnTimeLine();
         }
         public void OnPointerClick(PointerEventData eventData)
         {
-            float x = (eventData.position.x - rects[0].x) / (rects[2].x - rects[0].x);
-            float y = (eventData.position.y - rects[0].y) / (rects[1].y - rects[0].y);
-            Resources.Load<MinnesTimeLineItem>("TimeLineItem").PrefabInstantiate().Share(out var item);
-            item.transform.SetParent(this.transform, false);
-            var note = new NoteGenerater().target as Note;
-            SetupNote(note,
-                Minnes.MinnesInstance.CurrentTick + (y - 1) * Minnes.ProjectNoteDefaultDisplayLength,
-                Minnes.MinnesInstance.CurrentTick + y * Minnes.ProjectNoteDefaultDisplayLength,
-                LeftBound + x * (RightBound - LeftBound), StartY, StartZ,
-                LeftBound + x * (RightBound - LeftBound), StartY, EndZ
-                );
-            item.SetNote(note);
-            item.InitTablePosition();
+            if (MinnesStatsSharedPanel.EditTypeName == "Create")
+            {
+                float x = (eventData.position.x - rects[0].x) / (rects[2].x - rects[0].x);
+                float y = (eventData.position.y - rects[0].y) / (rects[1].y - rects[0].y);
+                Resources.Load<MinnesTimeLineItem>("TimeLineItem").PrefabInstantiate().Share(out var item);
+                item.transform.SetParent(this.transform, false);
+                var note = new NoteGenerater().target as Note;
+                SetupNote(note,
+                    Minnes.MinnesInstance.CurrentTick + (y - 1) * Minnes.ProjectNoteDefaultDisplayLength,
+                    Minnes.MinnesInstance.CurrentTick + y * Minnes.ProjectNoteDefaultDisplayLength,
+                    LeftBound + x * (RightBound - LeftBound), StartY, StartZ,
+                    LeftBound + x * (RightBound - LeftBound), StartY, EndZ
+                    );
+                item.SetNote(note);
+                item.InitTablePosition();
+            }
         }
 
         private void Start()

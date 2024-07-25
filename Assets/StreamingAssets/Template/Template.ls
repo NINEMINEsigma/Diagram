@@ -15,6 +15,8 @@ note1 -> target -> MakeScale(@JudgeTime,@SongEndTime,0,0,0,0,0,0,0)
 note1 -> target -> InitNote(@JudgeTime,@JudgeModulePackage,@JudgeModuleName,@SoundModulePackage,@SoundModuleName)
 note1 -> target -> RegisterOnTimeLine()
 define @StartY = 2
+define @StartX = -5
+define @EndX = 5
 new(note2) Game.NoteGenerater()
 note2 -> target -> InitPosition(@StartX,@StartY,@StartZ)
 note2 -> target -> MakeMovement("@HoldTime+@StartTime","@HoldTime+@JudgeTime",@StartX,@StartY,@StartZ,@EndX,@EndY,@EndZ,0)
@@ -24,8 +26,8 @@ note2 -> target -> MakeScale("@HoldTime+@JudgeTime","@HoldTime+@SongEndTime",0,0
 note2 -> target -> InitNote("@HoldTime+@JudgeTime",@JudgeModulePackage,@JudgeModuleName,@SoundModulePackage,@SoundModuleName)
 note2 -> target -> RegisterOnTimeLine()
 define @StartX = 5
-define @StartY = 10
-define @HoldTime = 7
+define @StartY = 0
+define @HoldTime = 2.5
 new(note3) Game.NoteGenerater()
 note3 -> target -> InitPosition(@StartX,@StartY,@StartZ)
 note3 -> target -> MakeMovement("@HoldTime+@StartTime","@HoldTime+@JudgeTime",@StartX,@StartY,@StartZ,@EndX,@EndY,@EndZ,0)
@@ -38,5 +40,5 @@ new(long) Game.LongNoteBodyGenerater()
 long -> target -> AddNoteGenerater(note1)
 long -> target -> AddNoteGenerater(note2)
 long -> target -> AddNoteGenerater(note3)
-long -> target -> MakeRebuildInterval(@StartTime,"@HoldTime+@JudgeTime")
+long -> target -> MakeRebuildInterval("@StartTime-10","@HoldTime+@JudgeTime+10")
 long -> target -> RegisterOnTimeLine()

@@ -32,7 +32,7 @@ namespace Diagram
         }
 
         public Dictionary<string, Action<float, float>> TimeListener;
-        public virtual void TimeUpdate(float time, float stats)
+        public virtual void TimeUpdate(ref float time, ref float stats)
         {
             foreach (var invoker in TimeListener)
             {
@@ -40,17 +40,6 @@ namespace Diagram
             }
         }
 
-        public LineBehaviour MakeDelay(int time, string expression)
-        {
-            TimeListener.Add($"Delay-{time}-{expression}", (float timex, float statsx) =>
-            {
-                if (time == timex)
-                {
-                    new LineScript(("this", this), ("time", timex), ("stats", statsx)).Run(expression);
-                }
-            });
-            return this;
-        }
         public void InitPosition(float x, float y, float z)
         {
             this.transform.position = new Vector3(x, y, z);
@@ -66,6 +55,7 @@ namespace Diagram
 
         public LineBehaviour MakeMovement(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
         {
+            if (startTime == endTime) return this;
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(x, y, z), to = new(x2, y2, z2);
             TimeListener.TryAdd($"Movement-{startTime}-{endTime}", (float time, float stats) =>
@@ -77,6 +67,7 @@ namespace Diagram
         }
         public LineBehaviour MakeRotating(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
         {
+            if (startTime == endTime) return this;
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(x, y, z), to = new(x2, y2, z2);
             TimeListener.TryAdd($"Rotating-{startTime}-{endTime}", (float time, float stats) =>
@@ -88,6 +79,7 @@ namespace Diagram
         }
         public LineBehaviour MakeScale(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
         {
+            if (startTime == endTime) return this;
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(x, y, z), to = new(x2, y2, z2);
             TimeListener.TryAdd($"ScaleTransform-{startTime}-{endTime}", (float time, float stats) =>
@@ -99,6 +91,7 @@ namespace Diagram
         }
         public LineBehaviour MakeRelativeMovement(float startTime, float endTime, float x, float y, float z, int easeType)
         {
+            if (startTime == endTime) return this;
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(transform.position.x, transform.position.y, transform.position.z);
             Vector3 to = new Vector3(x, y, z) + from;
@@ -111,6 +104,7 @@ namespace Diagram
         }
         public LineBehaviour MakeRelativeRotating(float startTime, float endTime, float x, float y, float z, int easeType)
         {
+            if (startTime == endTime) return this;
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(transform.eulerAngles.x, transform.eulerAngles.y, transform.eulerAngles.z);
             Vector3 to = new Vector3(x, y, z) + from;
@@ -123,6 +117,7 @@ namespace Diagram
         }
         public LineBehaviour MakeRelativeScale(float startTime, float endTime, float x, float y, float z, int easeType)
         {
+            if (startTime == endTime) return this;
             var eCurve = new EaseCurve((EaseCurveType)easeType);
             Vector3 from = new(transform.localScale.x, transform.localScale.y, transform.localScale.z);
             Vector3 to = new Vector3(x, y, z) + from;

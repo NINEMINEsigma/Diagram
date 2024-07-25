@@ -25,8 +25,8 @@ namespace Game
             this.Architecture<Minnes>().GetController<MinnesTimeline>().To<MinnesTimeline>().TimeLineDisplayLength = length;
         }
 
-        private List<Color[]> BarLineColorsList;
-        private int BarColorPointer = 0;
+        public List<Color[]> BarLineColorsList;
+        public int BarColorPointer = 0;
 
         public static Texture2D BakeAudioWaveformBarline(float bpm, float songLength, int width, int height, params Color[] barLineColors)
         {
@@ -137,7 +137,7 @@ namespace Game
             }
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.A].isPressed)
             {
-                TimeLineDisplayLength = Mathf.Clamp(TimeLineDisplayLength + Time.deltaTime * Mouse.current.scroll.ReadValue().y, 0.1f, ASC.CurrentClip.length);
+                TimeLineDisplayLength = Mathf.Clamp(TimeLineDisplayLength + Time.deltaTime * Mouse.current.scroll.ReadValue().y * 0.1f, 0.1f, ASC.CurrentClip.length);
             }
 
             try

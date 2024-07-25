@@ -1,12 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using AD.Utility;
 using Diagram;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -21,7 +17,7 @@ namespace Game
         {
             if (this.MyNote.MyScriptName == null || this.MyNote.MyScriptName.Length == 0)
             {
-                this.MyNote.MyScriptName = $".virtual/note{MyNote.GetHashCode().ToString()}_{MyNote.JudgeTime.GetHashCode()}.ls";
+                this.MyNote.MyScriptName = $".virtual/note{MyNote.GetHashCode().ToString()}_{MyNote.JudgeTime}.ls";
                 using ToolFile file = new(Path.Combine(LineScript.BinPath, this.MyNote.MyScriptName), true, false, true);
                 string str =
                     $"include \"MinnesNoteDefine.ls\"\n\n" +
@@ -42,12 +38,16 @@ namespace Game
             else
             {
                 using ToolFile file = new(Path.Combine(LineScript.BinPath, this.MyNote.MyScriptName), true, false, true);
-                string[] lines = file.GetString(true, Encoding.UTF8).Split('\n'); 
+                string[] lines = file.GetString(true, Encoding.UTF8).Split('\n');
                 for (int i = 0; i < lines.Length; i++)
                 {
                     string line = lines[i];
-                    if (line.Contains("MinnesNoteDefine.ls"))
+                    if (line == "\r")
                         lines[i] = "";
+                    else if (line.Contains("MinnesNoteDefine.ls"))
+                        lines[i] = "";
+                    else if (line.Contains("@StartY") || line.Contains("@EndY"))
+                        lines[i] = lines[i].Trim(' ') + "\n";
                     else if (line.Contains("@") && line.Contains("define"))
                         lines[i] = "";
                     else
@@ -59,8 +59,8 @@ namespace Game
                     $"define @Version = \"D0.5.1\"\n" +
                     $"define @StartX = {MyNote.transform.position.x}\n" +
                     $"define @EndX = {MyNote.transform.position.x}\n" +
-                    $"define @StartY = {MyNote.transform.position.y}\n" +
-                    $"define @EndY = {MyNote.transform.position.y}\n" +
+                    //$"define @StartY = {MyNote.transform.position.y}\n" +
+                    //$"define @EndY = {MyNote.transform.position.y}\n" +
                     $"define @StartTime = {MyNote.JudgeTime - Minnes.ProjectNoteMaxDisplayLength}\n" +
                     $"define @JudgeTime = {MyNote.JudgeTime}\n" +
                     $"define @InitScaleX = {MyNote.transform.localScale.x}\n" +
@@ -79,6 +79,7 @@ namespace Game
             if (MyNote)
             {
                 ToolFile.DeleteFile(Path.Combine(LineScript.BinPath, MyNote.MyScriptName));
+                MyNote.UnregisterOnTimeLine();
                 GameObject.Destroy(MyNote.gameObject);
             }
             if (note)
@@ -183,11 +184,15 @@ namespace Game
             if (Note.FocusNote == MyNote)
                 Note.FocusNote = null;
             isDrag = false;
+            float oneBarScale = 60.0f / Minnes.ProjectBPM / (float)MinnesTimeline.instance.BarLineColorsList[MinnesTimeline.instance.BarColorPointer].Length;
             float x = (eventData.position.x - TimeLineTable.instance.rects[0].x) / (TimeLineTable.instance.rects[2].x - TimeLineTable.instance.rects[0].x);
             float y = (eventData.position.y - TimeLineTable.instance.rects[0].y) / (TimeLineTable.instance.rects[1].y - TimeLineTable.instance.rects[0].y);
+            float
+                startTime = oneBarScale * (int)((Minnes.MinnesInstance.CurrentTick + (y - 1) * Minnes.ProjectNoteDefaultDisplayLength) / oneBarScale),
+                endTime = oneBarScale * (int)((Minnes.MinnesInstance.CurrentTick + y * Minnes.ProjectNoteDefaultDisplayLength) / oneBarScale);
             TimeLineTable.SetupNote(MyNote,
-                Minnes.MinnesInstance.CurrentTick + (y - 1) * Minnes.ProjectNoteDefaultDisplayLength,
-                Minnes.MinnesInstance.CurrentTick + y * Minnes.ProjectNoteDefaultDisplayLength,
+                startTime,
+                endTime,
                 TimeLineTable.instance.LeftBound + x * (TimeLineTable.instance.RightBound - TimeLineTable.instance.LeftBound), TimeLineTable.instance.StartY, TimeLineTable.instance.StartZ,
                TimeLineTable.instance.LeftBound + x * (TimeLineTable.instance.RightBound - TimeLineTable.instance.LeftBound), TimeLineTable.instance.StartY, TimeLineTable.instance.EndZ
                 );
