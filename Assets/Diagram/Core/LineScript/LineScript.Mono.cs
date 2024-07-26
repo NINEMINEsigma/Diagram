@@ -143,7 +143,7 @@ namespace Diagram
             else
                 Debug.LogError(file.FilePath + " is not exist");
         }
-        public Material MyMaterial { get => MyRenderer.sharedMaterial; set => MyRenderer.sharedMaterial = value; }
+        public Material MyMaterial { get => MyRenderer.material; set => MyRenderer.material = value; }
         public void LoadMaterial(string package, string name)
         {
             if (package == "None" || name == "None") return;

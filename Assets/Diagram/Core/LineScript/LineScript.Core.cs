@@ -184,13 +184,19 @@ namespace Diagram
                 string word = words[i];
                 if (word.Length == 0) continue;
                 LineWord lineWord = LineWord.Read(this, word);
-                //bool is_need_trans_controller = true;
-                if (Controller.DetectNext(lineWord))
+                try
                 {
-                    Controller = Controller.ResolveToBehaviour(this, lineWord);
+                    if (Controller.DetectNext(lineWord))
+                    {
+                        Controller = Controller.ResolveToBehaviour(this, lineWord);
+                    }
+                    else throw new ParseException($"On {lineindex} {i}:...{(i > 0 ? words[i - 1] + "<" + Controller.GetType().Name + ">" : "")} {word}<{lineWord.GetType().Name}>... is not allow");
                 }
-                else throw new ParseException($"On {lineindex} {i}:...{(i > 0 ? words[i - 1] + "<" + Controller.GetType().Name + ">" : "")} {word}<{lineWord.GetType().Name}>... is not allow");
-                //if (is_need_trans_controller) Controller = lineWord;
+                catch(Exception ex)
+                {
+                    Debug.LogException(ex);
+                    throw new ParseException($"On {lineindex} {i}:...{(i > 0 ? words[i - 1] + "<" + Controller.GetType().Name + ">" : "")} {word}<{lineWord.GetType().Name}>... is throw error");
+                }
             }
             Controller.ResolveToBehaviour(this,null);
         }

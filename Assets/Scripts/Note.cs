@@ -5,14 +5,30 @@ using UnityEngine;
 
 namespace Game
 {
-    public class IJudgeModule : LineBehaviour
+    public class IJudgeModule : MinnesController
     {
 
     }
 
-    public class ISoundModule : LineBehaviour
-    { 
-    
+    public class ISoundModule : MinnesController
+    {
+        [SerializeField] private AudioSystem source;
+        public AudioSystem Source
+        {
+            get
+            {
+                if (source == null)
+                    source = this.SeekComponent<AudioSystem>();
+                if (source == null)
+                    source = this.gameObject.AddComponent<AudioSystem>();
+                return source;
+            }
+        }
+        private SortedList<float, bool> TimeClocker = new(); 
+        public void LoadAudio(string audio)
+        {
+            Source.LoadOnUrl(audio,AudioSystem.GetAudioType(audio));
+        }
     }
 
     public class NoteGenerater : MinnesGenerater
@@ -89,6 +105,23 @@ namespace Game
         {
             if(this != FocusNote)  FocusNote = this;
             else FocusNote = null;
+        }
+
+        public ISoundModule GetSoundModule(string name)
+        {
+            return SoundModules[name];
+        }
+        public void MakeSoundPlay(float startTime,string name)
+        {
+
+        }
+        public IJudgeModule GetJudgeModule(string name)
+        {
+            return JudgeModules[name];
+        }
+        public void MakeJudgeEffectPlay(float startTime,string name)
+        {
+
         }
     }
 }

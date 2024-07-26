@@ -7,6 +7,7 @@ using AD.UI;
 using AD.Utility;
 using Diagram;
 using Diagram.Arithmetic;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -128,11 +129,21 @@ namespace Game
         {
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.R].wasPressedThisFrame)
             {
-                PastTime = CurrentTick;
-                ADGlobalSystem.instance.OnEnd();
+                if (Note.FocusNote == null)
+                {
+                    PastTime = CurrentTick;
+                    ADGlobalSystem.instance.OnEnd();
+                }
+                else if (string.IsNullOrEmpty(Note.FocusNote.MyScriptName) == false)
+                {
+                    Note.FocusNote.TimeListener.Clear();
+                    Note.FocusNote.UnregisterOnTimeLine();
+                    Note.FocusNote.ReloadLineScript();
+                    Note.FocusNote = null;
+                }
                 return;
-            }    
-            if (ASC.CurrentClip == null) return; 
+            }
+            if (ASC.CurrentClip == null) return;
             CurrentTick = ASC.CurrentTime;
             "CurrentTick".InsertVariable(CurrentTick);
             float t = CurrentTick, s = CurrentStats;
@@ -142,19 +153,25 @@ namespace Game
                 {
                     item.TimeUpdate(ref t, ref s);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Debug.LogException(ex);
                 }
             }
 
-            float delta = Mathf.Abs(RawCurrentTick - RawPastTick);
-            this.RawPastTick =
-                delta > Time.deltaTime * this.RawLimitTick
-                ? (this.RawCurrentTick - this.RawPastTick > 0
-                    ? this.RawPastTick + delta * 0.2f
-                    : this.RawPastTick - delta * 0.2f)
-                : this.RawCurrentTick;
+            float delta = Mathf.Abs(CurrentStats);
+            if (delta < Time.deltaTime * this.RawLimitTick)
+            {
+                this.RawPastTick = this.CurrentTick;
+            }
+            if (delta < Time.deltaTime * 3 * this.RawLimitTick)
+            {
+                this.RawPastTick += CurrentStats * 0.5f;
+            }
+            else
+            {
+                this.RawPastTick += CurrentStats * 0.1f;
+            }
         }
 
         public Text InfoBarText;

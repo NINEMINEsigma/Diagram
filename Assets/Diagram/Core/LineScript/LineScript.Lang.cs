@@ -635,48 +635,83 @@ namespace Diagram
         public override bool AllowLinkLiteralValue => true;
         public FunctionSymbolWord Functional;
         public object ReferenceInstance;
-        bool isOperator = false;
+        OperatorKeyWord this_operKeyWord;
         public ReferenceSymbolWord(string source) : base(source) { }
 
         public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
         {
-            if (next is SymbolWord.OperatorKeyWord.OperatorPointTo)
+            OperatorKeyWord operKeyWord = this_operKeyWord;
+            if (next == null)
             {
-                this.isOperator = true;
+                this_operKeyWord = null;
+            }
+            if (operKeyWord != null)
+            {
+                if (operKeyWord is SymbolWord.OperatorKeyWord.OperatorPointTo)
+                {
+                    if (Functional == null)
+                    {
+                        next.As<SourceValueWord>().Source.Share(out var str);
+                        if (ReferenceInstance.GetType().GetMethods().FirstOrDefault(T => T.Name == str).Share(out var method) != null)
+                        {
+                            Functional = new(str, ReferenceInstance, new(method, method.GetParameters().Length));
+                            return this;
+                        }
+                        else if (DiagramType.CreateDiagramType(ReferenceInstance.GetType()).GetMember(str).Share(out var member) != null)
+                        {
+                            ReferenceInstance = ReferenceInstance.GetFieldByName(str);
+                            this.source = member.name;
+                            this_operKeyWord = null;
+                            return this;
+                        }
+                        throw new ParseException($"Error Parse->{str}");
+                    }
+                    else
+                    {
+                        return Functional.ResolveToBehaviour(core, next);
+                    }
+                }
+                else if (operKeyWord is SymbolWord.OperatorKeyWord.OperatorAssign)
+                {
+                    if (core.CreatedInstances.ContainsKey(this.Source))
+                    {
+                        if (next is ReferenceSymbolWord ref0)
+                        {
+                            core.CreatedInstances[this.Source] = core.CreatedInstances[ref0.Source];
+                        }
+                        else if (next is LiteralValueWord literalValue)
+                        {
+                            Debug.Log($"{this.source} = {literalValue.source}");
+                            core.CreatedInstances[this.Source] = literalValue.Source;
+                        }
+                        else if(next is SymbolWord newsymbol)
+                        {
+                            if (core.CreatedInstances.TryGetValue(newsymbol.Source, out object target) == false)
+                            {
+                                if (core.CreatedSymbols.TryGetValue(newsymbol.Source, out var tempsymb) == false)
+                                {
+                                    throw new ParseException($"Cannt Found {newsymbol.Source}");
+                                }
+                                else
+                                {
+                                    return tempsymb;
+                                }
+                            }
+                            else
+                                core.CreatedInstances[this.Source] = target;
+                        }
+                        return this;
+                    }
+                }
+            }
+            else if (next is SymbolWord.OperatorKeyWord)
+            {
+                this_operKeyWord = next as OperatorKeyWord;
                 if (ReferenceInstance == null)
-                    core.CreatedInstances.TryGetValue(this.Source, out ReferenceInstance);
+                    ReferenceInstance = core.CreatedInstances[this.Source];
                 return this;
-            } 
-            if (isOperator)
-            {
-                isOperator = false;
-                next.As<SourceValueWord>().Source.Share(out var str);
-                if (ReferenceInstance.GetType().GetMethods().FirstOrDefault(T => T.Name == str).Share(out var method) != null)
-                {
-                    Functional = new(str, ReferenceInstance, new(method, method.GetParameters().Length));
-                    return this;
-                }
-                else if (DiagramType.CreateDiagramType(ReferenceInstance.GetType()).GetMember(str).Share(out var member) != null)
-                {
-                    ReferenceInstance = ReferenceInstance.GetFieldByName(str);
-                    this.source = member.name;
-                    return this;
-                }
-                throw new ParseException($"Error Parse->{str}");
             }
-            else
-            {
-                if (Functional != null)
-                {
-                    return Functional.ResolveToBehaviour(core, next);
-                }
-                else if (next == null)
-                {
-                    core.CreatedInstances["@result"] = ReferenceInstance;
-                    return next;
-                }
-                throw new ParseException("Unknown Parse way");
-            }
+            throw new ParseException("Unknown Parse way");
         }
     }
 }

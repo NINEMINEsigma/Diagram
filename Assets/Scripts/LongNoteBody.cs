@@ -48,7 +48,12 @@ namespace Game
         {
             TimeListener.TryAdd($"RebuildInterval-{startTime}-{endTime}", (float time, float stats) =>
             {
-                if (time < startTime || time > endTime) return;
+                if (time < startTime || time > endTime)
+                {
+                    this.MyRenderer.enabled = false;
+                    return;
+                }
+                this.MyRenderer.enabled = true;
                 if (this.Pointers.Count >= 2)
                 {
                     AD.Utility.CustomCurveSourceLinner linkingCurve = new();
@@ -66,10 +71,6 @@ namespace Game
                     linkingCurve.AllPoints.Add(new(this.Pointers[^1].transform.position, true));
                     this.MeshSourcePairs = linkingCurve.GenerateCurveMeshData(MeshExtension.BuildNormalType.JustDirection, Vector3.right, this.BodySizeCurve);
                     this.MyMeshFilter.RebuildMesh(this.MeshSourcePairs);
-                }
-                else
-                {
-                    this.MyMesh = null;
                 }
             });
             return this;
