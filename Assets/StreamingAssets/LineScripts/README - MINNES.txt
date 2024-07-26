@@ -102,13 +102,22 @@ namespace Game
     public class Note : MinnesController
     {
         //从package加载name名称的判定模块
-        public void LoadJudgeModule(string package, string name);
+        public IJudgeModule LoadJudgeModule(string package, string name);
         //从package加载name名称的声音模块
-        public void LoadSoundModule(string package, string name);
+        public ISoundModule LoadSoundModule(string package, string name);
         //设置判定时间(使用FocusTime)
         public void SetJudgeTime(float judgeTime);
         //调用以上三个函数初始化note
         public void InitNote(float judgeTime, string judge_module_package, string judge_module_name, string sound_module_package, string sound_module_name);
+        
+        //获取声音模块
+        public ISoundModule GetSoundModule(string name);
+        //设定在某时播放该模块的声音一次
+        public Note MakeSoundPlay(float startTime, string name);
+        //获取判定模块
+        public IJudgeModule GetJudgeModule(string name);
+        //设定在某时播放该模块的效果一次
+        public Note MakeJudgeEffectPlay(float startTime,string name);
     }
     
     public class TimeLineTable : MinnesController

@@ -37,6 +37,7 @@ namespace Game
             }
             else
             {
+                MyNote.name = this.MyNote.MyScriptName;
                 using ToolFile file = new(Path.Combine(LineScript.BinPath, this.MyNote.MyScriptName), true, false, true);
                 string[] lines = file.GetString(true, Encoding.UTF8).Split('\n');
                 for (int i = 0; i < lines.Length; i++)

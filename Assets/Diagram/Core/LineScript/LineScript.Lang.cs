@@ -55,6 +55,8 @@ namespace Diagram
         /// </summary>
         /// <returns>Next controller word(is this? is next? or a new one)</returns>
         public virtual LineWord ResolveToBehaviour(LineScript core, LineWord next) { return next; }
+
+        public string ForwardInformation;
     }
 
     public abstract class SystemKeyWord : LineWord
@@ -484,7 +486,37 @@ namespace Diagram
         {
             public OperatorKeyWord(string source) : base(source) { }
             public class OperatorEqual : OperatorKeyWord { private OperatorEqual() : base("==") { } public readonly static OperatorEqual instance = new(); }
-            public class OperatorAssign : OperatorKeyWord { private OperatorAssign() : base("=") { } public readonly static OperatorAssign instance = new(); }
+            public class OperatorAssign : OperatorKeyWord
+            {
+                private OperatorAssign() : base("=") { }
+                public readonly static OperatorAssign instance = new();
+                public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
+                {
+                    if (string.IsNullOrEmpty(this.ForwardInformation) == false)
+                    {
+                        if (core.CreatedInstances.ContainsKey(this.ForwardInformation))
+                        {
+                            if (next is SourceValueWord source)
+                                core.CreatedInstances[this.ForwardInformation] = source.Source;
+                            else throw new ParseException("Bad Type of Word");
+                        }
+                        else if (core.CreatedSymbols.ContainsKey(this.ForwardInformation))
+                        {
+                            if (next is SymbolWord symbol)
+                            {
+                                core.CreatedSymbols[this.ForwardInformation] = symbol;
+                            }
+                            else if(next is LiteralValueWord lvw)
+                            {
+                                core.CreatedSymbols[this.ForwardInformation] = new SymbolWord(lvw.Source);
+                            }
+                            else throw new ParseException("Bad Type of Word");
+                        }
+                    }
+                    else throw new ParseException("Left word is missing");
+                    return next;
+                }
+            }
             public class OperatorGreater : OperatorKeyWord { private OperatorGreater() : base(">") { } public readonly static OperatorGreater instance = new(); }
             public class OperatorPointTo : OperatorKeyWord { private OperatorPointTo() : base("->") { } public readonly static OperatorPointTo instance = new(); }
             public static bool GetOperatorSymbolWord(string source, out SymbolWord symbol)
@@ -624,7 +656,13 @@ namespace Diagram
             counter = 0;
             core.CreatedInstances["@result"] = this.AnyFunctional.Invoke(CoreInvokerInstance, this.constructorslist);
             this.constructorslist = new object[AnyFunctional.ArgsTotal];
-            return new ReferenceSymbolWord("@result");
+
+            LineWord result = new ReferenceSymbolWord("@result");
+            if (next != null)
+            {
+                result = result.ResolveToBehaviour(core, next);
+            }
+            return result;
         }
     }
 
@@ -668,7 +706,13 @@ namespace Diagram
                     }
                     else
                     {
-                        return Functional.ResolveToBehaviour(core, next);
+                        var result = Functional.ResolveToBehaviour(core, next);
+                        if(result==Functional)
+                        {
+                            this_operKeyWord = null;
+                            Functional = null;
+                        }
+                        return result;
                     }
                 }
                 else if (operKeyWord is SymbolWord.OperatorKeyWord.OperatorAssign)

@@ -1,0 +1,10 @@
+ManifestFileVersion: 0
+CRC: 719536489
+AssetBundleManifest:
+  AssetBundleInfos:
+    Info_0:
+      Name: ab
+      Dependencies: {}
+    Info_1:
+      Name: minnes_default.minnesassets
+      Dependencies: {}

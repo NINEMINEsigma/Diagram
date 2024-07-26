@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using ClipperLib;
 using Diagram;
 using UnityEngine;
 
@@ -29,6 +30,8 @@ namespace Game
         {
             Source.LoadOnUrl(audio,AudioSystem.GetAudioType(audio));
         }
+
+        public bool IsInvoked = false;
     }
 
     public class NoteGenerater : MinnesGenerater
@@ -57,15 +60,19 @@ namespace Game
 
         public Dictionary<string, IJudgeModule> JudgeModules = new();
         public Dictionary<string, ISoundModule> SoundModules = new();
-        public void LoadJudgeModule(string package, string name)
+        public IJudgeModule LoadJudgeModule(string package, string name)
         {
-            if (LoadSubGameObject(package, name).Share(out var obj) != null && obj.SeekComponent<IJudgeModule>().Share(out var module) != null)
+            IJudgeModule module = null;
+            if (LoadSubGameObject(package, name).Share(out var obj) != null && obj.SeekComponent<IJudgeModule>().Share(out module) != null)
                 JudgeModules.Add(name, module);
+            return module;
         }
-        public void LoadSoundModule(string package, string name)
+        public ISoundModule LoadSoundModule(string package, string name)
         {
-            if (LoadSubGameObject(package, name).Share(out var obj) != null && obj.SeekComponent<ISoundModule>().Share(out var module) != null)
+            ISoundModule module = null;
+            if (LoadSubGameObject(package, name).Share(out var obj) != null && obj.SeekComponent<ISoundModule>().Share(out module) != null)
                 SoundModules.Add(name, module);
+            return module;
         }
         public float JudgeTime { get => this.FocusTime; set => this.FocusTime = value; }
         public void SetJudgeTime(float judgeTime) => SetFocusTime(judgeTime);
@@ -86,7 +93,17 @@ namespace Game
                 if (_focusNote != null)
                     _focusNote.FocusBoundLight.SetFloat("_IsOpen", 0);
                 if (value != null)
+                {
+                    if(string.IsNullOrEmpty( value.MyScriptName)==false)
+                    {
+                        MinnesTimeline.instance.Stats.SetTitle("Focus Note <Runtime> " + value.MyScriptName);
+                    }
+                    else
+                    {
+                        MinnesTimeline.instance.Stats.SetTitle("Focus Note <Static>");
+                    }
                     value.FocusBoundLight.SetFloat("_IsOpen", 1);
+                }
                 _focusNote = value;
             }
         }
@@ -111,17 +128,30 @@ namespace Game
         {
             return SoundModules[name];
         }
-        public void MakeSoundPlay(float startTime,string name)
+        public Note MakeSoundPlay(float startTime, string name)
         {
-
+            var audio = GetSoundModule(name);
+            TimeListener.TryAdd($"SoundPlay-{startTime}", (float time, float stats) =>
+            {
+                if (startTime > time)
+                {
+                    audio.IsInvoked = false;
+                }
+                else if (audio.IsInvoked == false && startTime <= time && stats <= Minnes.ProjectNoteMaxDisplayLength)
+                {
+                    audio.IsInvoked = true;
+                    audio.Source.Play();
+                }
+            });
+            return this;
         }
         public IJudgeModule GetJudgeModule(string name)
         {
             return JudgeModules[name];
         }
-        public void MakeJudgeEffectPlay(float startTime,string name)
+        public Note MakeJudgeEffectPlay(float startTime,string name)
         {
-
+            return this;
         }
     }
 }

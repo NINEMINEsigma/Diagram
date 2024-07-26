@@ -1,0 +1,33 @@
+ManifestFileVersion: 0
+CRC: 1365914817
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: c77b68113f9be1caf062e7300d69aee2
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: 560849a8e6019b71639e571f8e8c1d88
+HashAppended: 0
+ClassTypes:
+- Class: 1
+  Script: {instanceID: 0}
+- Class: 4
+  Script: {instanceID: 0}
+- Class: 82
+  Script: {instanceID: 0}
+- Class: 114
+  Script: {fileID: 11500000, guid: 481951927163c0a4ca1936d168688e5a, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: 90172174b941e564ea8bb4b45e9ed2bc, type: 3}
+- Class: 115
+  Script: {instanceID: 0}
+- Class: 241
+  Script: {instanceID: 0}
+- Class: 243
+  Script: {instanceID: 0}
+- Class: 245
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Assets/AB/Default/SoundModule.prefab
+Dependencies: []

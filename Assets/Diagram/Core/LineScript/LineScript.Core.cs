@@ -184,6 +184,7 @@ namespace Diagram
                 string word = words[i];
                 if (word.Length == 0) continue;
                 LineWord lineWord = LineWord.Read(this, word);
+                lineWord.ForwardInformation = i > 0 ? words[i - 1] : null;
                 try
                 {
                     if (Controller.DetectNext(lineWord))
@@ -197,6 +198,7 @@ namespace Diagram
                     Debug.LogException(ex);
                     throw new ParseException($"On {lineindex} {i}:...{(i > 0 ? words[i - 1] + "<" + Controller.GetType().Name + ">" : "")} {word}<{lineWord.GetType().Name}>... is throw error");
                 }
+                lineWord.ForwardInformation = null;
             }
             Controller.ResolveToBehaviour(this,null);
         }

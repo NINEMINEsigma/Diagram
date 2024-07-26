@@ -159,7 +159,7 @@ namespace Diagram
             using ToolFile file = new(package, false, true, true);
             if (file)
             {
-                file.LoadAssetBundle().LoadAsset<GameObject>(name).Share(out var obj).transform.SetParent(transform, false);
+                file.LoadAssetBundle().LoadAsset<GameObject>(name).PrefabInstantiate().Share(out var obj).transform.SetParent(transform, false);
                 obj.name = name;
                 return obj;
             }
