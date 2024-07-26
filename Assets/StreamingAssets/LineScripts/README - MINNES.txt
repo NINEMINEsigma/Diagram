@@ -2,127 +2,85 @@ namespace Game
 {
     public class Minnes : LineBehaviour
     {
-        public static float PastTime;
+        //从package的包中加载sceneName场景
         public void LoadScene(string package, string sceneName);
+        //设置谱面预设流速
         public void SetSpeed(float speed);
+        //设置最大下落时长(流速为1时note从轨道头落入判定位置的总时长)
         public void SetDisplayMaxLength(float max);
-        public AudioSystem ASC;
+        //加载曲目
         public void LoadSong(string song);
+        //初始化制谱器后:等待一段时间后立刻开始播放
         public void WaitForPlay(float time);
+        //立即播放曲目
         public void PlaySong();
+        //停止
         public void StopSong();
+        //暂停
         public void PauseSong();
+        //暂停/播放
         public void PlayOrPauseSong();
+        //设置BPM
         public void SetBPM(float bpm);
+        //设置目标项目
         public void SetProject(string projectName);
-
+        //重新加载全部运行时脚本
         public void ReloadScripts();
 
-        public static string ProjectName = "Test";
-        public static string ProjectPath => Path.Combine(ToolFile.userPath, ProjectName);
         public static float ProjectBPM = 60;
         public static float ProjectSpeed = 1;
         public static float ProjectNoteDefaultDisplayLength => ProjectNoteMaxDisplayLength / ProjectSpeed;
         public static float ProjectNoteMaxDisplayLength = 3;
-        public static Minnes MinnesInstance;
 
-        public class StartRuntimeCommand { }
-        public List<MinnesController> EnableContronller;
-
-        private void Awake();
-        private void OnDestroy();
-
-        private float RawPastTick;
-        private float RawCurrentTick;
-        private float RawLimitTick;
-        public float CurrentTick;
-        public float CurrentStats => get;
-        public List<MinnesController> AllControllers ;
-        private void Update();
-        public Text InfoBarText;
+        //设置底部信息栏的信息
         public void SetInfo(string str);
     }
 
     public class MinnesController : LineBehaviour
     {
-        public string MyMinnesID;
-        public static IEnumerator WaitForSomeTime(Action action);
-        public float FocusTime;
+        //设置一个焦点时间
         public void SetFocusTime(float time);
 
-        virtual protected void OnEnable();
-        virtual protected void OnDisable();
+        //注册于时间轴,不进行注册则所有与时间相关的设置无法生效
         public void RegisterOnTimeLine();
+        //取消基于时间的事件注册
         public void UnregisterOnTimeLine();
-
-        public void OnMinnesInspector();
-        protected void OnMinnesInspectorYouCanntEdit();
-        protected virtual void OnMinnesInspectorV();
     }
 
     public class MinnesGenerater
     {
-        public static Dictionary<string, Func<MinnesController>> GenerateAction = new();
+        //生成的对象
         public MinnesController target;
+        //构造函数(类名,ID)
         public MinnesGenerater(string class_name,string minnesID);
+        //设置ID
         public void SetID(string ID);
+        //设置名称
         public void SetName(string name);
     }
     
     public class MinnesCamera : MinnesController
     {
-        private void Start();
-        public void OnDependencyCompleting();
-        public Camera GetCamera() => this.SeekComponent<Camera>();
-        public void SetPerspective() => GetCamera().orthographic = false;
-        public void SetOrthographic() => GetCamera().orthographic = true;
-        public void SetFieldOfView(float value) => GetCamera().fieldOfView = value;
+        //获取unity camera
+        public Camera GetCamera();
+        //设置为透视相机
+        public void SetPerspective();
+        //设置为正交相机
+        public void SetOrthographic();
+        //设置透视相机的视场大小
+        public void SetFieldOfView(float value);
+        //设置正交相机的视场大小
+        public void SetOrthographicSize(float value);
+        //设置相机近平面
+        public void SetNear(float near) => GetCamera().nearClipPlane = near;
+        //设置相机远平面
+        public void SetFar(float far) => GetCamera().farClipPlane = far;
     }
-    
-    public class MinnesStatsSharedPanel : LineBehaviour
-    {
-        public void OnDependencyCompleting();
 
-        private void Start();
-
-        public void SetStats();
-        public void SetNoteTypeDefault(bool on);
-        public void SetEditTypeCreate(bool on);
-
-        public ModernUIDropdown NoteType;
-        public ModernUIDropdown EditType;
-
-        public static ModernUIDropdown StaticNoteType;
-        public static ModernUIDropdown StaticEditType;
-
-        public static string NoteTypeName = "Create";
-        public static string EditTypeName = "Default";
-    }
-    
     public class MinnesTimeline : LineBehaviour
     {
-        public static MinnesTimeline instance;
-
-        public AudioSystem ASC => Minnes.MinnesInstance.ASC;
-        public float CurrnetTime => Minnes.MinnesInstance.CurrentTick;
-        public RawImage TimeLineRawImage;
-        public float TimeLineDisplayLength = 3;
-        public RawImage BarlineRawImage;
-        public ModernUIFillBar TimeLineBar;
-        public ModernUIButton Stats;
-
-
+        //设置时间轴的可视时间长度
         public void SetTimeDisplayLength(float length);
-
-        public List<Color[]> BarLineColorsList;
-        public int BarColorPointer = 0;
-
-        public static Texture2D BakeAudioWaveformBarline(float bpm, float songLength, int width, int height, params Color[] barLineColors);
-
-        public void OnDependencyCompleting();
-
-        private void Start();
-        private void Update();
     }
     
     public class IJudgeModule : LineBehaviour
@@ -137,47 +95,37 @@ namespace Game
 
     public class NoteGenerater : MinnesGenerater
     {
-        public static void InitNoteGenerater();
-
+        //构造一个Note,从target获取
         public NoteGenerater() : base("Note","Untag");
     }
 
     public class Note : MinnesController
     {
-        public override void ReloadLineScript();
-
-        public Dictionary<string, IJudgeModule> JudgeModules;
-        public Dictionary<string, ISoundModule> SoundModules;
+        //从package加载name名称的判定模块
         public void LoadJudgeModule(string package, string name);
+        //从package加载name名称的声音模块
         public void LoadSoundModule(string package, string name);
-        public float JudgeTime { get; set; }
+        //设置判定时间(使用FocusTime)
         public void SetJudgeTime(float judgeTime);
+        //调用以上三个函数初始化note
         public void InitNote(float judgeTime, string judge_module_package, string judge_module_name, string sound_module_package, string sound_module_name);
-
-        public static Note FocusNote;
-        private Material focusBoundLight;
-        public Material FocusBoundLight;
-        private void Update();
-        private void OnMouseDown();
     }
     
     public class TimeLineTable : MinnesController
     {
-        public static TimeLineTable instance;
-
-        public void OnDependencyCompleting();
-
         public float LeftBound = -6, RightBound = 6;
         public float StartZ = 0, EndZ = 0;
         public float StartY = 0;
+        //设置当前编辑左右轨道边界
         public void SetBound(float left, float right);
+        //设置当前编辑轨道前后边界
         public void SetTrackZ(float start,float end);
+        //设置当前编辑轨道高度
         public void SetTrackY(float start);
-
-        public Vector3[] rects;
-
-        public static void SetupNote(Note note,float startTime,float endTime,float x,float y,float z,float x2,float y2,float z2);
-        public void OnPointerClick(PointerEventData eventData);
-        private void Start();
+        
+        //生成默认的VirtualNote.ls文件
+        public void GenerateVirtualNoteLS();
+        //加载.virtual下的note
+        public void ReloadVirtualFolderNotes()
     }
 }

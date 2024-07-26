@@ -35,6 +35,7 @@ namespace Game
         {
             if (TimeListener == null) return;
             if (MyScriptName == null || MyScriptName.Length == 0) return;
+            this.TimeListener.Clear();
             LineScript.RunScript(MyScriptName, ("this", this), ("note", this));
         }
 
@@ -59,7 +60,20 @@ namespace Game
             LoadSoundModule(sound_module_package, sound_module_name);
         }
 
-        public static Note FocusNote;
+        public static Note _focusNote;
+        public static Note FocusNote
+        {
+            get => _focusNote;
+            set
+            {
+                if (_focusNote == value) return;
+                if (_focusNote != null)
+                    _focusNote.FocusBoundLight.SetFloat("_IsOpen", 0);
+                if (value != null)
+                    value.FocusBoundLight.SetFloat("_IsOpen", 1);
+                _focusNote = value;
+            }
+        }
         private Material focusBoundLight;
         public Material FocusBoundLight
         {
@@ -69,11 +83,6 @@ namespace Game
                     focusBoundLight = this.meshRenderer.materials[1];
                 return focusBoundLight;
             }
-        }
-
-        private void Update()
-        {
-            FocusBoundLight.SetFloat("_IsOpen", this == FocusNote ? 1 : 0);
         }
 
         private void OnMouseDown()

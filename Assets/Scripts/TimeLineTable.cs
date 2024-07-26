@@ -10,47 +10,50 @@ namespace Game
     {
         public static TimeLineTable instance;
 
-        public void OnDependencyCompleting()
+        public void GenerateVirtualNoteLS()
         {
-            if (ToolFile.TryCreateDirectroryOfFile(Path.Combine(ToolFile.userPath, Minnes.ProjectName, ".virtual", "x.ls"))) { }
-            if (ToolFile.FileExists(Path.Combine(ToolFile.userPath, Minnes.ProjectName, ".virtual", "VirtualNote.ls")) == false)
-            {
-                using (ToolFile file = new(Path.Combine(ToolFile.userPath, Minnes.ProjectName, ".virtual", "VirtualNote.ls"), true, false, true))
+            using ToolFile file = new(Path.Combine(ToolFile.userPath, Minnes.ProjectName, "VirtualNote.ls"), true, false, true);
+            file.ReplaceAllData((
+                "note -> InitPosition(@StartX,@StartY,@StartZ)\n" +
+                "note -> InitScale(@InitScaleX,@InitScaleY,@InitScaleZ)\n" +
+                "note -> MakeMovement(0,@StartTime,@StartX,@StartY,@StartZ,@StartX,@StartY,@StartZ,0)\n" +
+                "note -> MakeMovement(@StartTime,@JudgeTime,@StartX,@StartY,@StartZ,@EndX,@EndY,@EndZ,0)\n" +
+                "note -> MakeMovement(@JudgeTime,@SongEndTime,@EndX,@EndY,@EndZ,@EndX,@EndY,@EndZ,0)\n" +
+                "note -> MakeScale(0,@StartTime,0,0,0,0,0,0,0)\n" +
+                "note -> MakeScale(@StartTime,@JudgeTime,@InitScaleX,@InitScaleY,@InitScaleZ,@InitScaleX,@InitScaleY,@InitScaleZ,0)\n" +
+                "note -> MakeScale(@JudgeTime,@SongEndTime,0,0,0,0,0,0,0)\n" +
+                "note -> InitNote(@JudgeTime,@JudgeModulePackage,@JudgeModuleName,@SoundModulePackage,@SoundModuleName)\n" +
+                "note -> RegisterOnTimeLine()\n").ToByteArrayUTF8()
+                );
+            file.SaveFileData();
+        }
+
+        public void ReloadVirtualFolderNotes()
+        {
+            if (ToolFile.DirectoryExists(Path.Combine(ToolFile.userPath, Minnes.ProjectName, ".virtual")))
+                foreach (var file in ToolFile.CreateDirectroryOfFile(Path.Combine(ToolFile.userPath, Minnes.ProjectName, ".virtual", "x.ls")).GetFiles())
                 {
-                    file.ReplaceAllData((
-                        "note -> InitPosition(@StartX,@StartY,@StartZ)\n" +
-                        "note -> InitScale(@InitScaleX,@InitScaleY,@InitScaleZ)\n" +
-                        "note -> MakeMovement(0,@StartTime,@StartX,@StartY,@StartZ,@StartX,@StartY,@StartZ,0)\n" +
-                        "note -> MakeMovement(@StartTime,@JudgeTime,@StartX,@StartY,@StartZ,@EndX,@EndY,@EndZ,0)\n" +
-                        "note -> MakeMovement(@JudgeTime,@SongEndTime,@EndX,@EndY,@EndZ,@EndX,@EndY,@EndZ,0)\n" +
-                        "note -> MakeScale(0,@StartTime,0,0,0,0,0,0,0)\n" +
-                        "note -> MakeScale(@StartTime,@JudgeTime,@InitScaleX,@InitScaleY,@InitScaleZ,@InitScaleX,@InitScaleY,@InitScaleZ,0)\n" +
-                        "note -> MakeScale(@JudgeTime,@SongEndTime,0,0,0,0,0,0,0)\n" +
-                        "note -> InitNote(@JudgeTime,@JudgeModulePackage,@JudgeModuleName,@SoundModulePackage,@SoundModuleName)\n" +
-                        "note -> RegisterOnTimeLine()\n").ToByteArrayUTF8()
-                        );
-                    file.SaveFileData();
-                }
-            }
-            LineScript.RunScript("TimeTable.ls", ("this", this));
-            foreach (var file in ToolFile.CreateDirectroryOfFile(Path.Combine(ToolFile.userPath, Minnes.ProjectName, ".virtual", "x.ls")).GetFiles())
-            {
-                if (file.Extension == ".ls" && file.Name.StartsWith("note"))
-                {
-                    new NoteGenerater().target.Share(out var note);
-                    note.SetTargetScript(".virtual" + "/" + file.Name);
-                    Resources
-                        .Load<MinnesTimeLineItem>("TimeLineItem")
-                        .PrefabInstantiate()
-                        .As<MinnesTimeLineItem>()
-                        .Share(out var item);
+                    if (file.Extension == ".ls" && file.Name.StartsWith("note"))
+                    {
+                        new NoteGenerater().target.Share(out var note);
+                        note.SetTargetScript(".virtual" + "/" + file.Name);
+                        Resources
+                            .Load<MinnesTimeLineItem>("TimeLineItem")
+                            .PrefabInstantiate()
+                            .As<MinnesTimeLineItem>()
+                            .Share(out var item);
                         //.SetNote(LineScript.RunScript(Path.Combine(".virtual", file.Name), ("note", note))
                         //.CreatedInstances["note"] as Note);
-                    item.transform.SetParent(this.transform, false);
-                    item.SetNote(note as Note);
-                    item.InitTablePosition();
+                        item.transform.SetParent(this.transform, false);
+                        item.SetNote(note as Note);
+                        item.InitTablePosition();
+                    }
                 }
-            }
+        }
+
+        public void OnDependencyCompleting()
+        {
+            LineScript.RunScript("TimeTable.ls", ("this", this));
         }
 
         public float LeftBound = -6, RightBound = 6;
@@ -107,10 +110,14 @@ namespace Game
             }
         }
 
+        private void Update()
+        {           
+            rects = Diagram.RectTransformExtension.GetRect(this.MyRectTransform);
+        }
+
         private void Start()
         {
             instance = this;
-            rects = Diagram.RectTransformExtension.GetRect(this.transform.As<RectTransform>());
             this.RegisterControllerOn(typeof(Minnes), new(), typeof(Minnes.StartRuntimeCommand),typeof(MinnesTimeline));
         }
     }

@@ -74,7 +74,7 @@ namespace Game
                     Color.blue, Color.yellow,Color.green, Color.yellow,}
             };
             TimeLineRawImage.MainTex = AudioSourceController.BakeAudioWaveformVertical(ASC.CurrentClip, 60, 300, 4000);
-            BarlineRawImage.MainTex = BakeAudioWaveformBarline(Minnes.ProjectBPM, ASC.CurrentClip.length, 300, 4000, BarLineColorsList[BarColorPointer]);
+            BarlineRawImage.MainTex = BakeAudioWaveformBarline(Minnes.ProjectBPM, ASC.CurrentClip.length, 1, 16384, BarLineColorsList[BarColorPointer]);
             TimeLineBar.Set(0, ASC.CurrentClip.length);
             TimeLineBar.IsInt = false;
             TimeLineBar.OnTransValueChange.AddListener(T =>
@@ -133,7 +133,7 @@ namespace Game
             {
                 BarColorPointer += Keyboard.current[Key.LeftAlt].isPressed ? -1 : 1;
                 BarColorPointer = BarColorPointer % BarLineColorsList.Count;
-                BarlineRawImage.MainTex = BakeAudioWaveformBarline(Minnes.ProjectBPM, ASC.CurrentClip.length, 300, 4000, BarLineColorsList[BarColorPointer]);
+                BarlineRawImage.MainTex = BakeAudioWaveformBarline(Minnes.ProjectBPM, ASC.CurrentClip.length, 1, 16384, BarLineColorsList[BarColorPointer]);
             }
             if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.A].isPressed)
             {

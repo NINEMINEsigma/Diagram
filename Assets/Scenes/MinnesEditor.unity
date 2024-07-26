@@ -411,7 +411,7 @@ MonoBehaviour:
   Selected: 0
   ElementArea: ModernUIButton
   IsChildAllLinkAtMyTransformAsChild: 0
-  buttonText: Stats
+  buttonText: 
   clickEvent:
     m_PersistentCalls:
       m_Calls: []
@@ -1776,7 +1776,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Stats
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: e19e7b858b7058d478d5725621422819, type: 2}
   m_sharedMaterial: {fileID: -8493678639131513909, guid: e19e7b858b7058d478d5725621422819, type: 2}
@@ -1803,7 +1803,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 37.85
+  m_fontSize: 22.5
   m_fontSizeBase: 22.5
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -2919,7 +2919,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Stats
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: e19e7b858b7058d478d5725621422819, type: 2}
   m_sharedMaterial: {fileID: -8493678639131513909, guid: e19e7b858b7058d478d5725621422819, type: 2}
@@ -2946,7 +2946,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 37.85
+  m_fontSize: 22.5
   m_fontSizeBase: 22.5
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -3766,7 +3766,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
       propertyPath: dropdownItems.Array.data[1].toggleEvents.m_PersistentCalls.m_Calls.Array.size
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
       propertyPath: dropdownItems.Array.data[0].toggleEvents.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
@@ -3774,7 +3774,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
       propertyPath: dropdownItems.Array.data[1].toggleEvents.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
       propertyPath: dropdownItems.Array.data[0].toggleEvents.m_PersistentCalls.m_Calls.Array.data[0].m_Target
@@ -3783,7 +3783,7 @@ PrefabInstance:
     - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
       propertyPath: dropdownItems.Array.data[1].toggleEvents.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
-      objectReference: {fileID: 39322547}
+      objectReference: {fileID: 1340180555}
     - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
       propertyPath: dropdownItems.Array.data[0].toggleEvents.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
       value: 2
@@ -3797,11 +3797,23 @@ PrefabInstance:
       value: SetEditTypeCreate
       objectReference: {fileID: 0}
     - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
+      propertyPath: dropdownItems.Array.data[1].toggleEvents.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: SetEditTypeDelete
+      objectReference: {fileID: 0}
+    - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
       propertyPath: dropdownItems.Array.data[0].toggleEvents.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
       value: Game.MinnesStatsSharedPanel, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
+      propertyPath: dropdownItems.Array.data[1].toggleEvents.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: Game.MinnesStatsSharedPanel, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
       propertyPath: dropdownItems.Array.data[0].toggleEvents.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
+    - target: {fileID: 1695362349713964990, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
+      propertyPath: dropdownItems.Array.data[1].toggleEvents.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
       value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
     - target: {fileID: 1695362349749063375, guid: 2fc8e59f86bdc3b4c90b8fefa95ab608, type: 3}
@@ -4122,8 +4134,8 @@ MonoBehaviour:
   IsAutoSaveArchitecturesDebugLog: 0
   AutoSaveArchitecturesDebugLogTimeLimit: 60
   AutoSaveArchitecturesDebugLogTimeLimitCounter:
-    clockS: 638575192719803414
-    clockE: 638575192719803414
+    clockS: 638575897273713810
+    clockE: 638575897273713810
     clockU: 0
   _IsOnValidate: 1
   RecordPath: null
@@ -5352,6 +5364,7 @@ MonoBehaviour:
   BarlineRawImage: {fileID: 423157424}
   TimeLineBar: {fileID: 220958010}
   Stats: {fileID: 80750899}
+  BarColorPointer: 0
 --- !u!114 &2142225431
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -19,5 +19,8 @@ namespace Game
         public void SetPerspective() => GetCamera().orthographic = false;
         public void SetOrthographic() => GetCamera().orthographic = true;
         public void SetFieldOfView(float value) => GetCamera().fieldOfView = value;
+        public void SetOrthographicSize(float value) => GetCamera().orthographicSize = value;
+        public void SetNear(float near) => GetCamera().nearClipPlane = near;
+        public void SetFar(float far) => GetCamera().farClipPlane = far;
     }
 }

@@ -2,13 +2,6 @@ namespace Diagram
 { 
     public class LineBehaviour : MonoBehaviour
     {
-        private RectTransform _rectTransform;
-        public RectTransform MyRectTransform
-        {
-            get;
-        }
-
-        public string MyScriptName;
         public void SetTargetScript(string path);
 
         public virtual void ReloadLineScript();

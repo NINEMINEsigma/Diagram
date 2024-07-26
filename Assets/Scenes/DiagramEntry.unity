@@ -640,7 +640,7 @@ AudioListener:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 796672060}
-  m_Enabled: 1
+  m_Enabled: 0
 --- !u!20 &796672062
 Camera:
   m_ObjectHideFlags: 0
@@ -718,13 +718,13 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 796672060}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 23c1ce4fb46143f46bc5cb5224c934f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  clearColorMode: 0
-  backgroundColorHDR: {r: 0.025, g: 0.07, b: 0.19, a: 0}
+  clearColorMode: 1
+  backgroundColorHDR: {r: 1, g: 1, b: 1, a: 0}
   clearDepth: 1
   volumeLayerMask:
     serializedVersion: 2
@@ -897,8 +897,8 @@ MonoBehaviour:
   IsAutoSaveArchitecturesDebugLog: 0
   AutoSaveArchitecturesDebugLogTimeLimit: 60
   AutoSaveArchitecturesDebugLogTimeLimitCounter:
-    clockS: 638574433869515204
-    clockE: 638574433869515204
+    clockS: 638575918718676522
+    clockE: 638575918718676522
     clockU: 0
   _IsOnValidate: 1
   RecordPath: null

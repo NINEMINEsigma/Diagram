@@ -7,9 +7,10 @@ namespace Game
     {
         public void OnDependencyCompleting()
         {
-            LineScript.RunScript("Stats.ls", ("this", this));
+            //LineScript.RunScript("Stats.ls", ("this", this));
             StaticEditType = this.EditType;
             StaticNoteType = this.NoteType;
+            SetStats();
         }
 
         private void Start()
@@ -19,17 +20,24 @@ namespace Game
 
         public void SetStats()
         {
-            MinnesTimeline.instance.Stats.buttonText = $"{NoteTypeName}-{EditTypeName}";
+            MinnesTimeline.instance.Stats.SetTitle($"{Minnes.ProjectName}-{NoteTypeName}-{EditTypeName}");
         }
         public void SetNoteTypeDefault(bool on)
         {
             if (on)
-                NoteTypeName = "Default";
+                NoteTypeName = "Note";
             SetStats();
         }
         public void SetEditTypeCreate(bool on)
         {
-            EditTypeName = on ? "Create" : "Delete";
+            if (on)
+                EditTypeName = "Create";
+            SetStats();
+        }
+        public void SetEditTypeDelete(bool on)
+        {
+            if (on)
+                EditTypeName = "Delete";
             SetStats();
         }
 
@@ -39,7 +47,7 @@ namespace Game
         public static ModernUIDropdown StaticNoteType;
         public static ModernUIDropdown StaticEditType;
 
-        public static string NoteTypeName = "Create";
-        public static string EditTypeName = "Default";
+        public static string NoteTypeName = "Note";
+        public static string EditTypeName = "Create";
     }
 }

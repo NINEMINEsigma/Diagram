@@ -26,6 +26,7 @@ namespace Game
         public AudioSystem ASC;
         public void LoadSong(string song)
         {
+            song = Path.Combine(LineScript.BinPath, song);
             ASC.LoadOnUrl(song, AudioSourceController.GetAudioType(song));
         }
         public void WaitForPlay(float time)
@@ -33,6 +34,7 @@ namespace Game
             StartCoroutine(IWaitForPlay(time));
             IEnumerator IWaitForPlay(float time)
             {
+                yield return new WaitForSeconds(time);
                 while (ASC.CurrentClip == null) yield return null;
                 ASC.Play();
                 ASC.CurrentTime = -time;
@@ -159,7 +161,7 @@ namespace Game
 
         public void SetInfo(string str)
         {
-            InfoBarText.text = str;
+            InfoBarText.SetText(str);
         }
     }
 

@@ -15,13 +15,13 @@ namespace Game
 
         public void WriteLineScript()
         {
+            if (ToolFile.TryCreateDirectroryOfFile(Path.Combine(ToolFile.userPath, Minnes.ProjectName, ".virtual", "x.ls"))) { }
             if (this.MyNote.MyScriptName == null || this.MyNote.MyScriptName.Length == 0)
             {
-                this.MyNote.MyScriptName = $".virtual/note{MyNote.GetHashCode().ToString()}_{MyNote.JudgeTime}.ls";
+                this.MyNote.MyScriptName = $".virtual/note{MyNote.GetHashCode().ToString()}_{MyNote.JudgeTime.GetHashCode()}.ls";
                 using ToolFile file = new(Path.Combine(LineScript.BinPath, this.MyNote.MyScriptName), true, false, true);
                 string str =
                     $"include \"MinnesNoteDefine.ls\"\n\n" +
-                    $"define @Version = \"D0.5.1\"\n" +
                     $"define @StartX = {MyNote.transform.position.x}\n" +
                     $"define @EndX = {MyNote.transform.position.x}\n" +
                     $"define @StartY = {MyNote.transform.position.y}\n" +
@@ -31,7 +31,7 @@ namespace Game
                     $"define @InitScaleX = {MyNote.transform.localScale.x}\n" +
                     $"define @InitScaleY = {MyNote.transform.localScale.y}\n" +
                     $"define @InitScaleZ = {MyNote.transform.localScale.z}\n" +
-                    $"call \".virtual/VirtualNote.ls\"\n";
+                    $"call \"VirtualNote.ls\"\n";
                 file.ReplaceAllData(str.ToByteArrayUTF8());
                 file.SaveFileData();
             }
@@ -42,21 +42,19 @@ namespace Game
                 for (int i = 0; i < lines.Length; i++)
                 {
                     string line = lines[i];
-                    if (line == "\r")
-                        lines[i] = "";
-                    else if (line.Contains("MinnesNoteDefine.ls"))
+                    lines[i] = lines[i].Trim(' ', '\r');
+                    if (line.Contains("MinnesNoteDefine.ls"))
                         lines[i] = "";
                     else if (line.Contains("@StartY") || line.Contains("@EndY"))
                         lines[i] = lines[i].Trim(' ') + "\n";
                     else if (line.Contains("@") && line.Contains("define"))
                         lines[i] = "";
                     else
-                        lines[i] = lines[i].Trim(' ') + "\n";
+                        lines[i] += "\n";
                 }
                 string newString = lines.Link();
                 string newDefine =
                     $"include \"MinnesNoteDefine.ls\"\n\n" +
-                    $"define @Version = \"D0.5.1\"\n" +
                     $"define @StartX = {MyNote.transform.position.x}\n" +
                     $"define @EndX = {MyNote.transform.position.x}\n" +
                     //$"define @StartY = {MyNote.transform.position.y}\n" +
@@ -110,6 +108,7 @@ namespace Game
             float t = (MyNote.JudgeTime - Minnes.MinnesInstance.CurrentTick) / MinnesTimeline.instance.TimeLineDisplayLength;
             if (t > 2 || t < -1) return;
             if(Note.FocusNote == MyNote) return;
+            if (isDrag) return;
             var rects = TimeLineTable.instance.rects;
             float x = (MyNote.transform.position.x - TimeLineTable.instance.LeftBound) / (TimeLineTable.instance.RightBound - TimeLineTable.instance.LeftBound);
             float y = (MyNote.JudgeTime - MinnesTimeline.instance.CurrnetTime) / MinnesTimeline.instance.TimeLineDisplayLength;
@@ -135,15 +134,18 @@ namespace Game
         {
             if (Minnes.MinnesInstance.ASC.IsPlay) return;
             Note.FocusNote = this.MyNote;
-            if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.E].isPressed)
-            {
-                MyNote.transform.localScale = MyNote.transform.localScale.AddX(Keyboard.current[Key.LeftAlt].isPressed ? -1 : 1);
-                WriteLineScript();
-            }
             if (MinnesStatsSharedPanel.EditTypeName == "Delete")
             {
                 SetNote(null);
                 GameObject.Destroy(this.gameObject);
+            }
+            else if (MinnesStatsSharedPanel.EditTypeName == "Create")
+            {
+                if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.E].isPressed)
+                {
+                    MyNote.transform.localScale = MyNote.transform.localScale.AddX(Keyboard.current[Key.LeftAlt].isPressed ? -1 : 1);
+                    WriteLineScript();
+                }
             }
         }
         
@@ -183,20 +185,33 @@ namespace Game
             if (Minnes.MinnesInstance.ASC.IsPlay) return;
             if (Note.FocusNote == MyNote)
                 Note.FocusNote = null;
+            MyNote.UnregisterOnTimeLine();
             isDrag = false;
             float oneBarScale = 60.0f / Minnes.ProjectBPM / (float)MinnesTimeline.instance.BarLineColorsList[MinnesTimeline.instance.BarColorPointer].Length;
-            float x = (eventData.position.x - TimeLineTable.instance.rects[0].x) / (TimeLineTable.instance.rects[2].x - TimeLineTable.instance.rects[0].x);
-            float y = (eventData.position.y - TimeLineTable.instance.rects[0].y) / (TimeLineTable.instance.rects[1].y - TimeLineTable.instance.rects[0].y);
+            float x = (transform.position.x - TimeLineTable.instance.rects[0].x) / (TimeLineTable.instance.rects[2].x - TimeLineTable.instance.rects[0].x);
+            float y = (transform.position.y - TimeLineTable.instance.rects[0].y) / (TimeLineTable.instance.rects[1].y - TimeLineTable.instance.rects[0].y);
             float
-                startTime = oneBarScale * (int)((Minnes.MinnesInstance.CurrentTick + (y - 1) * Minnes.ProjectNoteDefaultDisplayLength) / oneBarScale),
-                endTime = oneBarScale * (int)((Minnes.MinnesInstance.CurrentTick + y * Minnes.ProjectNoteDefaultDisplayLength) / oneBarScale);
-            TimeLineTable.SetupNote(MyNote,
-                startTime,
-                endTime,
-                TimeLineTable.instance.LeftBound + x * (TimeLineTable.instance.RightBound - TimeLineTable.instance.LeftBound), TimeLineTable.instance.StartY, TimeLineTable.instance.StartZ,
-               TimeLineTable.instance.LeftBound + x * (TimeLineTable.instance.RightBound - TimeLineTable.instance.LeftBound), TimeLineTable.instance.StartY, TimeLineTable.instance.EndZ
-                );
+                startTime = oneBarScale * (int)((Minnes.MinnesInstance.CurrentTick + (y - 1) * MinnesTimeline.instance.TimeLineDisplayLength) / oneBarScale),
+                endTime = oneBarScale * (int)((Minnes.MinnesInstance.CurrentTick + y * MinnesTimeline.instance.TimeLineDisplayLength) / oneBarScale);
+            //TimeLineTable.SetupNote(MyNote,
+            //    startTime,
+            //    endTime,
+            //    TimeLineTable.instance.LeftBound + x * (TimeLineTable.instance.RightBound - TimeLineTable.instance.LeftBound), TimeLineTable.instance.StartY, TimeLineTable.instance.StartZ,
+            //   TimeLineTable.instance.LeftBound + x * (TimeLineTable.instance.RightBound - TimeLineTable.instance.LeftBound), TimeLineTable.instance.StartY, TimeLineTable.instance.EndZ
+            //    );
+            MyNote.SetJudgeTime(endTime);
+            var scale = MyNote.transform.localScale;
+            var rot = MyNote.transform.rotation;
+            float a = 0, b = 0;
+            MyNote.TimeUpdate(ref a, ref b);
+            MyNote.transform.position = new(
+                TimeLineTable.instance.LeftBound + x * (TimeLineTable.instance.RightBound - TimeLineTable.instance.LeftBound),
+                MyNote.transform.position.y,
+                MyNote.transform.position.z);
+            MyNote.transform.localScale = scale;
+            MyNote.transform.rotation = rot;
             WriteLineScript();
+            MyNote.ReloadLineScript();
         }
 
         // 设置最大、最小坐标
