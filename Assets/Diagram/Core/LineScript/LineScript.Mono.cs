@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Diagram.Arithmetic;
 using Diagram.Message;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace Diagram
@@ -131,8 +130,24 @@ namespace Diagram
 
         [SerializeField] protected MeshRenderer meshRenderer;
         [SerializeField] protected MeshFilter meshFilter;
-        public MeshRenderer MyRenderer => meshRenderer = meshRenderer != null ? meshRenderer : this.SeekComponent<MeshRenderer>();
-        public MeshFilter MyMeshFilter => meshFilter = meshFilter != null ? meshFilter : this.SeekComponent<MeshFilter>();
+        public MeshRenderer MyRenderer
+        {
+            get
+            {
+                if (meshRenderer == null) 
+                    meshRenderer = this.SeekComponent<MeshRenderer>();
+                return meshRenderer;
+            }
+        }
+        public MeshFilter MyMeshFilter
+        {
+            get
+            {
+                if (meshFilter == null)
+                    meshFilter = this.SeekComponent<MeshFilter>();
+                return meshFilter;
+            }
+        }
         public Mesh MyMesh { get => MyMeshFilter.mesh; set => MyMeshFilter.mesh = value; }
         public void LoadMesh(string package, string name)
         {
@@ -172,6 +187,20 @@ namespace Diagram
             GameObject.Destroy(this.transform.Find(name));
         }
 
+        private Animator animator;
+        public Animator MyAnimator
+        {
+            get
+            {
+                if (animator == null)
+                    animator = this.SeekComponent<Animator>();
+                return animator;
+            }
+        }
+        public void PlayAnimaton(string name)
+        {
+            MyAnimator.Play(name);
+        }
 
         public Component LAddComponent(string type)
         {
@@ -196,6 +225,8 @@ namespace Diagram
         {
             Debug.Log(new GetCache(index).message);
         }
+
+        public virtual void Reset() { }
     }
 
     public class ResourceLineBehaviourLoader

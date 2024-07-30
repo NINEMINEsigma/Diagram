@@ -2,59 +2,79 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
+using System.Text;
+using Diagram.Collections;
+using Diagram.DeepReflection;
 using Newtonsoft.Json;
+using RuntimeInspectorNamespace;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
 using static Diagram.ReflectionExtension;
 using Debug = UnityEngine.Debug;
+using Quaternion = UnityEngine.Quaternion;
 using Vector3 = UnityEngine.Vector3;
 
 namespace Diagram
 {
+    //Diagram source code annotation language
     #region SAL
 
 #pragma warning disable IDE1006
-    //Diagram source code annotation language
+    /// <summary>
+    /// It should not be a null value
+    /// </summary>
     [System.AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
     public sealed class _In_Attribute : Attribute
     {
 
     }
-
+    /// <summary>
+    /// An instance used to save the output
+    /// </summary>
     [System.AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
     public sealed class _Out_Attribute : Attribute
     {
 
     }
-
+    /// <summary>
+    /// Parameters that would be overlooked
+    /// </summary>
     [System.AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public sealed class _Ignore_Attribute : Attribute
     {
 
     }
-
+    /// <summary>
+    /// The parameters that must be present, which are very important
+    /// </summary>
     [System.AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public sealed class _Must_Attribute : Attribute
     {
 
     }
-
+    /// <summary>
+    /// Only the parameters of the content should be read without changing it
+    /// </summary>
     [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
     public sealed class _Const_Attribute : Attribute
     {
 
     }
-
+    /// <summary>
+    /// Instances that will change
+    /// </summary>
     [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
     public sealed class _Change_Attribute : Attribute
     {
@@ -62,7 +82,9 @@ namespace Diagram
 
         public _Change_Attribute(string target) { this.target = target; }
     }
-
+    /// <summary>
+    /// Annotation information
+    /// </summary>
     [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
     public sealed class _Note_Attribute : Attribute
     {
@@ -70,7 +92,9 @@ namespace Diagram
 
         public _Note_Attribute(string note) { this.note = note; }
     }
-
+    /// <summary>
+    /// Indicates types that are not supported
+    /// </summary>
     [System.AttributeUsage(AttributeTargets.All, Inherited = false, AllowMultiple = true)]
     public sealed class _NotSupport_Attribute : Attribute
     {
@@ -78,7 +102,9 @@ namespace Diagram
 
         public _NotSupport_Attribute(Type type) { this.type = type; }
     }
-
+    /// <summary>
+    /// The method used for initialization
+    /// </summary>
     [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
     public sealed class _Init_Attribute : Attribute
     {
@@ -1392,7 +1418,7 @@ namespace Diagram
             public TypeResult[] typeResults = null;
         }
 
-        private static object GetCurrentTargetWhenGetField(string currentCallingName, TypeResult current)
+        internal static object GetCurrentTargetWhenGetField(string currentCallingName, TypeResult current)
         {
             object currentTarget;
             FieldInfo data =
@@ -2379,6 +2405,2297 @@ namespace Diagram
             return self.NamedArguments.First(T => T.MemberName == name).TypedValue.Value;
         }
 
+        /// <summary>
+        /// Determines whether the specified field is an alias.
+        /// </summary>
+        /// <param name="fieldInfo">The field to check.</param>
+        /// <returns>true if the specified field is an alias; otherwise, false.</returns>
+        public static bool IsAliasField(this FieldInfo fieldInfo)
+        {
+            return fieldInfo is MemberAliasFieldInfo;
+        }
+
+        /// <summary>
+        /// Returns the original, backing field of an alias field if the field is an alias.
+        /// </summary>
+        /// <param name="fieldInfo">The field to check.</param>
+        /// <param name="throwOnNotAliased">if set to true an exception will be thrown if the field is not aliased.</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException">The field was not aliased; this only occurs if throwOnNotAliased is true.</exception>
+        public static FieldInfo DeAliasField(this FieldInfo fieldInfo, bool throwOnNotAliased = false)
+        {
+            MemberAliasFieldInfo memberAliasFieldInfo = fieldInfo as MemberAliasFieldInfo;
+            if (memberAliasFieldInfo != null)
+            {
+                while (memberAliasFieldInfo.AliasedField is MemberAliasFieldInfo)
+                {
+                    memberAliasFieldInfo = memberAliasFieldInfo.AliasedField as MemberAliasFieldInfo;
+                }
+
+                return memberAliasFieldInfo.AliasedField;
+            }
+
+            if (throwOnNotAliased)
+            {
+                throw new ArgumentException("The field " + fieldInfo.GetNiceName() + " was not aliased.");
+            }
+
+            return fieldInfo;
+        }
+
+
+        /// <summary>
+        /// Returns the specified method's full name "methodName(argType1 arg1, argType2
+        /// arg2, etc)" Uses the specified gauntlet to replaces type names, ex: "int" instead
+        /// of "Int32"
+        /// </summary>
+        public static string GetFullName(this MethodBase method, string extensionMethodPrefix)
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            if (method.IsExtensionMethod())
+            {
+                stringBuilder.Append(extensionMethodPrefix);
+            }
+
+            stringBuilder.Append(method.Name);
+            if (method.IsGenericMethod)
+            {
+                Type[] genericArguments = method.GetGenericArguments();
+                stringBuilder.Append("<");
+                for (int i = 0; i < genericArguments.Length; i++)
+                {
+                    if (i != 0)
+                    {
+                        stringBuilder.Append(", ");
+                    }
+
+                    stringBuilder.Append(genericArguments[i].GetNiceName());
+                }
+
+                stringBuilder.Append(">");
+            }
+
+            stringBuilder.Append("(");
+            stringBuilder.Append(method.GetParamsNames());
+            stringBuilder.Append(")");
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Returns a string representing the passed method parameters names. Ex "int num, float damage, Transform target"
+        /// </summary>
+        public static string GetParamsNames(this MethodBase method)
+        {
+            ParameterInfo[] array = (method.IsExtensionMethod() ? method.GetParameters().Skip(1).ToArray() : method.GetParameters());
+            StringBuilder stringBuilder = new StringBuilder();
+            int i = 0;
+            for (int num = array.Length; i < num; i++)
+            {
+                ParameterInfo parameterInfo = array[i];
+                string niceName = parameterInfo.ParameterType.GetNiceName();
+                stringBuilder.Append(niceName);
+                stringBuilder.Append(" ");
+                stringBuilder.Append(parameterInfo.Name);
+                if (i < num - 1)
+                {
+                    stringBuilder.Append(", ");
+                }
+            }
+
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Returns the specified method's full name.
+        /// </summary> 
+        public static string GetFullName(this MethodBase method)
+        {
+            return method.GetFullName("[ext] ");
+        }
+
+        /// <summary>
+        /// Tests if a method is an extension method.
+        /// </summary> 
+        public static bool IsExtensionMethod(this MethodBase method)
+        {
+            Type declaringType = method.DeclaringType;
+            if (declaringType.IsSealed && !declaringType.IsGenericType && !declaringType.IsNested)
+            {
+                return method.IsDefined(typeof(ExtensionAttribute), inherit: false);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Determines whether the specified method is an alias.
+        /// </summary>
+        /// <param name="methodInfo">The method to check.</param>
+        /// <returns>true if the specified method is an alias; otherwise, false.</returns>
+        public static bool IsAliasMethod(this MethodInfo methodInfo)
+        {
+            return methodInfo is MemberAliasMethodInfo;
+        }
+
+        /// <summary>
+        /// Returns the original, backing method of an alias method if the method is an alias.
+        /// </summary>
+        /// <param name="methodInfo">The method to check.</param>
+        /// <param name="throwOnNotAliased">if set to true an exception will be thrown if the method is not aliased.</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException">The method was not aliased; this only occurs if throwOnNotAliased is true.</exception>
+        public static MethodInfo DeAliasMethod(this MethodInfo methodInfo, bool throwOnNotAliased = false)
+        {
+            MemberAliasMethodInfo memberAliasMethodInfo = methodInfo as MemberAliasMethodInfo;
+            if (memberAliasMethodInfo != null)
+            {
+                while (memberAliasMethodInfo.AliasedMethod is MemberAliasMethodInfo)
+                {
+                    memberAliasMethodInfo = memberAliasMethodInfo.AliasedMethod as MemberAliasMethodInfo;
+                }
+
+                return memberAliasMethodInfo.AliasedMethod;
+            }
+
+            if (throwOnNotAliased)
+            {
+                throw new ArgumentException("The method " + methodInfo.GetNiceName() + " was not aliased.");
+            }
+
+            return methodInfo;
+        }
+
+        #region TypeExtension
+
+        private static readonly Func<float, float, bool> FloatEqualityComparerFunc = FloatEqualityComparer;
+
+        private static readonly Func<double, double, bool> DoubleEqualityComparerFunc = DoubleEqualityComparer;
+
+        private static readonly Func<Quaternion, Quaternion, bool> QuaternionEqualityComparerFunc = QuaternionEqualityComparer;
+
+        private static readonly object GenericConstraintsSatisfaction_LOCK = new object();
+
+        private static readonly Dictionary<Type, Type> GenericConstraintsSatisfactionInferredParameters = new Dictionary<Type, Type>();
+
+        private static readonly Dictionary<Type, Type> GenericConstraintsSatisfactionResolvedMap = new Dictionary<Type, Type>();
+
+        private static readonly HashSet<Type> GenericConstraintsSatisfactionProcessedParams = new HashSet<Type>();
+
+        private static readonly HashSet<Type> GenericConstraintsSatisfactionTypesToCheck = new HashSet<Type>();
+
+        private static readonly List<Type> GenericConstraintsSatisfactionTypesToCheck_ToAdd = new List<Type>();
+
+        private static readonly Type GenericListInterface = typeof(IList<>);
+
+        private static readonly Type GenericCollectionInterface = typeof(ICollection<>);
+
+        private static readonly object WeaklyTypedTypeCastDelegates_LOCK = new object();
+
+        private static readonly object StronglyTypedTypeCastDelegates_LOCK = new object();
+
+        private static readonly DoubleLookupDictionary<Type, Type, Func<object, object>> WeaklyTypedTypeCastDelegates = new DoubleLookupDictionary<Type, Type, Func<object, object>>();
+
+        private static readonly DoubleLookupDictionary<Type, Type, Delegate> StronglyTypedTypeCastDelegates = new DoubleLookupDictionary<Type, Type, Delegate>();
+
+        private static readonly Type[] TwoLengthTypeArray_Cached = new Type[2];
+
+        private static readonly Stack<Type> GenericArgumentsContainsTypes_ArgsToCheckCached = new Stack<Type>();
+
+        private static HashSet<string> ReservedCSharpKeywords = new HashSet<string>
+        { 
+            "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
+            "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum",
+            "event", "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto",
+            "if", "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace",
+            "new", "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
+            "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static", "string",
+            "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong", "unchecked",
+            "unsafe", "ushort", "using", "static", "void", "volatile", "while", "in", "get", "set",
+            "var"
+        };
+
+        /// <summary>
+        /// Type name alias lookup.
+        /// </summary>
+        public static readonly Dictionary<Type, string> TypeNameAlternatives = new Dictionary<Type, string>
+        {
+            {
+                typeof(float),
+                "float"
+            },
+            {
+                typeof(double),
+                "double"
+            },
+            {
+                typeof(sbyte),
+                "sbyte"
+            },
+            {
+                typeof(short),
+                "short"
+            },
+            {
+                typeof(int),
+                "int"
+            },
+            {
+                typeof(long),
+                "long"
+            },
+            {
+                typeof(byte),
+                "byte"
+            },
+            {
+                typeof(ushort),
+                "ushort"
+            },
+            {
+                typeof(uint),
+                "uint"
+            },
+            {
+                typeof(ulong),
+                "ulong"
+            },
+            {
+                typeof(decimal),
+                "decimal"
+            },
+            {
+                typeof(string),
+                "string"
+            },
+            {
+                typeof(char),
+                "char"
+            },
+            {
+                typeof(bool),
+                "bool"
+            },
+            {
+                typeof(float[]),
+                "float[]"
+            },
+            {
+                typeof(double[]),
+                "double[]"
+            },
+            {
+                typeof(sbyte[]),
+                "sbyte[]"
+            },
+            {
+                typeof(short[]),
+                "short[]"
+            },
+            {
+                typeof(int[]),
+                "int[]"
+            },
+            {
+                typeof(long[]),
+                "long[]"
+            },
+            {
+                typeof(byte[]),
+                "byte[]"
+            },
+            {
+                typeof(ushort[]),
+                "ushort[]"
+            },
+            {
+                typeof(uint[]),
+                "uint[]"
+            },
+            {
+                typeof(ulong[]),
+                "ulong[]"
+            },
+            {
+                typeof(decimal[]),
+                "decimal[]"
+            },
+            {
+                typeof(string[]),
+                "string[]"
+            },
+            {
+                typeof(char[]),
+                "char[]"
+            },
+            {
+                typeof(bool[]),
+                "bool[]"
+            }
+        };
+
+        private static readonly object CachedNiceNames_LOCK = new object();
+
+        private static readonly Dictionary<Type, string> CachedNiceNames = new Dictionary<Type, string>();
+
+        private static readonly Type VoidPointerType = typeof(void).MakePointerType();
+
+        private static readonly Dictionary<Type, HashSet<Type>> PrimitiveImplicitCasts = new Dictionary<Type, HashSet<Type>>
+        {
+            {
+                typeof(long),
+                new HashSet<Type>
+                {
+                    typeof(float),
+                    typeof(double),
+                    typeof(decimal)
+                }
+            },
+            {
+                typeof(int),
+                new HashSet<Type>
+                {
+                    typeof(long),
+                    typeof(float),
+                    typeof(double),
+                    typeof(decimal)
+                }
+            },
+            {
+                typeof(short),
+                new HashSet<Type>
+                {
+                    typeof(int),
+                    typeof(long),
+                    typeof(float),
+                    typeof(double),
+                    typeof(decimal)
+                }
+            },
+            {
+                typeof(sbyte),
+                new HashSet<Type>
+                {
+                    typeof(short),
+                    typeof(int),
+                    typeof(long),
+                    typeof(float),
+                    typeof(double),
+                    typeof(decimal)
+                }
+            },
+            {
+                typeof(ulong),
+                new HashSet<Type>
+                {
+                    typeof(float),
+                    typeof(double),
+                    typeof(decimal)
+                }
+            },
+            {
+                typeof(uint),
+                new HashSet<Type>
+                {
+                    typeof(long),
+                    typeof(ulong),
+                    typeof(float),
+                    typeof(double),
+                    typeof(decimal)
+                }
+            },
+            {
+                typeof(ushort),
+                new HashSet<Type>
+                {
+                    typeof(int),
+                    typeof(uint),
+                    typeof(long),
+                    typeof(ulong),
+                    typeof(float),
+                    typeof(double),
+                    typeof(decimal)
+                }
+            },
+            {
+                typeof(byte),
+                new HashSet<Type>
+                {
+                    typeof(short),
+                    typeof(ushort),
+                    typeof(int),
+                    typeof(uint),
+                    typeof(long),
+                    typeof(ulong),
+                    typeof(float),
+                    typeof(double),
+                    typeof(decimal)
+                }
+            },
+            {
+                typeof(char),
+                new HashSet<Type>
+                {
+                    typeof(ushort),
+                    typeof(int),
+                    typeof(uint),
+                    typeof(long),
+                    typeof(ulong),
+                    typeof(float),
+                    typeof(double),
+                    typeof(decimal)
+                }
+            },
+            {
+                typeof(bool),
+                new HashSet<Type>()
+            },
+            {
+                typeof(decimal),
+                new HashSet<Type>()
+            },
+            {
+                typeof(float),
+                new HashSet<Type> { typeof(double) }
+            },
+            {
+                typeof(double),
+                new HashSet<Type>()
+            },
+            {
+                typeof(IntPtr),
+                new HashSet<Type>()
+            },
+            {
+                typeof(UIntPtr),
+                new HashSet<Type>()
+            },
+            {
+                VoidPointerType,
+                new HashSet<Type>()
+            }
+        };
+
+            private static readonly HashSet<Type> ExplicitCastIntegrals = new HashSet<Type>
+        {
+            typeof(long),
+            typeof(int),
+            typeof(short),
+            typeof(sbyte),
+            typeof(ulong),
+            typeof(uint),
+            typeof(ushort),
+            typeof(byte),
+            typeof(char),
+            typeof(decimal),
+            typeof(float),
+            typeof(double),
+            typeof(IntPtr),
+            typeof(UIntPtr)
+        };
+
+        private static string GetCachedNiceName(Type type)
+        {
+            string value;
+            lock (CachedNiceNames_LOCK)
+            {
+                if (!CachedNiceNames.TryGetValue(type, out value))
+                {
+                    value = CreateNiceName(type);
+                    CachedNiceNames.Add(type, value);
+                }
+            }
+
+            return value;
+        }
+
+        private static string CreateNiceName(Type type)
+        {
+            if (type.IsArray)
+            {
+                int arrayRank = type.GetArrayRank();
+                return type.GetElementType().GetNiceName() + ((arrayRank == 1) ? "[]" : "[,]");
+            }
+
+            if (type.InheritsFrom(typeof(Nullable<>)))
+            {
+                return type.GetGenericArguments()[0].GetNiceName() + "?";
+            }
+
+            if (type.IsByRef)
+            {
+                return "ref " + type.GetElementType().GetNiceName();
+            }
+
+            if (type.IsGenericParameter || !type.IsGenericType)
+            {
+                return type.GetMaybeSimplifiedTypeName();
+            }
+
+            StringBuilder stringBuilder = new StringBuilder();
+            string name = type.Name;
+            int num = name.IndexOf("`");
+            if (num != -1)
+            {
+                stringBuilder.Append(name.Substring(0, num));
+            }
+            else
+            {
+                stringBuilder.Append(name);
+            }
+
+            stringBuilder.Append('<');
+            Type[] genericArguments = type.GetGenericArguments();
+            for (int i = 0; i < genericArguments.Length; i++)
+            {
+                Type type2 = genericArguments[i];
+                if (i != 0)
+                {
+                    stringBuilder.Append(", ");
+                }
+
+                stringBuilder.Append(type2.GetNiceName());
+            }
+
+            stringBuilder.Append('>');
+            return stringBuilder.ToString();
+        }
+
+        private static bool HasCastDefined(this Type from, Type to, bool requireImplicitCast)
+        {
+            if (from.IsEnum)
+            {
+                return Enum.GetUnderlyingType(from).IsCastableTo(to);
+            }
+
+            if (to.IsEnum)
+            {
+                return Enum.GetUnderlyingType(to).IsCastableTo(from);
+            }
+
+            if ((from.IsPrimitive || from == VoidPointerType) && (to.IsPrimitive || to == VoidPointerType))
+            {
+                if (requireImplicitCast)
+                {
+                    return PrimitiveImplicitCasts[from].Contains(to);
+                }
+
+                if (from == typeof(IntPtr))
+                {
+                    if (to == typeof(UIntPtr))
+                    {
+                        return false;
+                    }
+
+                    if (to == VoidPointerType)
+                    {
+                        return true;
+                    }
+                }
+                else if (from == typeof(UIntPtr))
+                {
+                    if (to == typeof(IntPtr))
+                    {
+                        return false;
+                    }
+
+                    if (to == VoidPointerType)
+                    {
+                        return true;
+                    }
+                }
+
+                if (ExplicitCastIntegrals.Contains(from))
+                {
+                    return ExplicitCastIntegrals.Contains(to);
+                }
+
+                return false;
+            }
+
+            return from.GetCastMethod(to, requireImplicitCast) != null;
+        }
+
+        //
+        // 摘要:
+        //     Checks whether a given string is a valid CSharp identifier name. This also checks
+        //     full type names including namespaces.
+        //
+        // 参数:
+        //   identifier:
+        //     The identifier to check.
+        public static bool IsValidIdentifier(string identifier)
+        {
+            if (identifier == null || identifier.Length == 0)
+            {
+                return false;
+            }
+
+            int num = identifier.IndexOf('.');
+            if (num >= 0)
+            {
+                string[] array = identifier.Split(new char[1] { '.' });
+                for (int i = 0; i < array.Length; i++)
+                {
+                    if (!IsValidIdentifier(array[i]))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            if (ReservedCSharpKeywords.Contains(identifier))
+            {
+                return false;
+            }
+
+            if (!IsValidIdentifierStartCharacter(identifier[0]))
+            {
+                return false;
+            }
+
+            for (int j = 1; j < identifier.Length; j++)
+            {
+                if (!IsValidIdentifierPartCharacter(identifier[j]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool IsValidIdentifierStartCharacter(char c)
+        {
+            if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && c != '_' && c != '@')
+            {
+                return char.IsLetter(c);
+            }
+
+            return true;
+        }
+
+        private static bool IsValidIdentifierPartCharacter(char c)
+        {
+            if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z'))
+            {
+                switch (c)
+                {
+                    default:
+                        return char.IsLetter(c);
+                    case '0':
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                    case '8':
+                    case '9':
+                    case '_':
+                        break;
+                }
+            }
+
+            return true;
+        }
+
+        //
+        // 摘要:
+        //     Determines whether a type can be casted to another type.
+        //
+        // 参数:
+        //   from:
+        //     From.
+        //
+        //   to:
+        //     To.
+        //
+        //   requireImplicitCast:
+        //     if set to true an implicit or explicit operator must be defined on the given
+        //     type.
+        public static bool IsCastableTo(this Type from, Type to, bool requireImplicitCast = false)
+        {
+            if (from == null)
+            {
+                throw new ArgumentNullException("from");
+            }
+
+            if (to == null)
+            {
+                throw new ArgumentNullException("to");
+            }
+
+            if (from == to)
+            {
+                return true;
+            }
+
+            if (!to.IsAssignableFrom(from))
+            {
+                return from.HasCastDefined(to, requireImplicitCast);
+            }
+
+            return true;
+        }
+
+        //
+        // 摘要:
+        //     If a type can be casted to another type, this provides a function to manually
+        //     convert the type.
+        //
+        // 参数:
+        //   from:
+        //     From.
+        //
+        //   to:
+        //     To.
+        //
+        //   requireImplicitCast:
+        //     if set to true an implicit or explicit operator must be defined on the given
+        //     type.
+        public static Func<object, object> GetCastMethodDelegate(this Type from, Type to, bool requireImplicitCast = false)
+        {
+            Func<object, object> value;
+            lock (WeaklyTypedTypeCastDelegates_LOCK)
+            {
+                if (!WeaklyTypedTypeCastDelegates.TryGetInnerValue(from, to, out value))
+                {
+                    MethodInfo method = from.GetCastMethod(to, requireImplicitCast);
+                    if (method != null)
+                    {
+                        value = (object obj) => method.Invoke(null, new object[1] { obj });
+                    }
+
+                    WeaklyTypedTypeCastDelegates.AddInner(from, to, value);
+                }
+            }
+
+            return value;
+        }
+
+        //
+        // 摘要:
+        //     If a type can be casted to another type, this provides a function to manually
+        //     convert the type.
+        //
+        // 参数:
+        //   requireImplicitCast:
+        //     if set to true an implicit or explicit operator must be defined on the given
+        //     type.
+        public static Func<TFrom, TTo> GetCastMethodDelegate<TFrom, TTo>(bool requireImplicitCast = false)
+        {
+            Delegate value;
+            lock (StronglyTypedTypeCastDelegates_LOCK)
+            {
+                if (!StronglyTypedTypeCastDelegates.TryGetInnerValue(typeof(TFrom), typeof(TTo), out value))
+                {
+                    MethodInfo castMethod = typeof(TFrom).GetCastMethod(typeof(TTo), requireImplicitCast);
+                    if (castMethod != null)
+                    {
+                        value = Delegate.CreateDelegate(typeof(Func<TFrom, TTo>), castMethod);
+                    }
+
+                    StronglyTypedTypeCastDelegates.AddInner(typeof(TFrom), typeof(TTo), value);
+                }
+            }
+
+            return (Func<TFrom, TTo>)value;
+        }
+
+        //
+        // 摘要:
+        //     If a type can be casted to another type, this provides the method info of the
+        //     method in charge of converting the type.
+        //
+        // 参数:
+        //   from:
+        //     From.
+        //
+        //   to:
+        //     To.
+        //
+        //   requireImplicitCast:
+        //     if set to true an implicit or explicit operator must be defined on the given
+        //     type.
+        public static MethodInfo GetCastMethod(this Type from, Type to, bool requireImplicitCast = false)
+        {
+            IEnumerable<MethodInfo> allMembers = from.GetAllMembers<MethodInfo>(BindingFlags.Public | BindingFlags.Static);
+            foreach (MethodInfo item in allMembers)
+            {
+                if ((item.Name == "op_Implicit" || (!requireImplicitCast && item.Name == "op_Explicit")) && item.GetParameters()[0].ParameterType.IsAssignableFrom(from) && to.IsAssignableFrom(item.ReturnType))
+                {
+                    return item;
+                }
+            }
+
+            IEnumerable<MethodInfo> allMembers2 = to.GetAllMembers<MethodInfo>(BindingFlags.Public | BindingFlags.Static);
+            foreach (MethodInfo item2 in allMembers2)
+            {
+                if ((item2.Name == "op_Implicit" || (!requireImplicitCast && item2.Name == "op_Explicit")) && item2.GetParameters()[0].ParameterType.IsAssignableFrom(from) && to.IsAssignableFrom(item2.ReturnType))
+                {
+                    return item2;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool FloatEqualityComparer(float a, float b)
+        {
+            if (float.IsNaN(a) && float.IsNaN(b))
+            {
+                return true;
+            }
+
+            return a == b;
+        }
+
+        private static bool DoubleEqualityComparer(double a, double b)
+        {
+            if (double.IsNaN(a) && double.IsNaN(b))
+            {
+                return true;
+            }
+
+            return a == b;
+        }
+
+        private static bool QuaternionEqualityComparer(Quaternion a, Quaternion b)
+        {
+            if (a.x == b.x && a.y == b.y && a.z == b.z)
+            {
+                return a.w == b.w;
+            }
+
+            return false;
+        }
+
+        //
+        // 摘要:
+        //     Gets the first attribute of type T. Returns null in the no attribute of type
+        //     T was found.
+        //
+        // 参数:
+        //   type:
+        //     The type.
+        //
+        //   inherit:
+        //     If true, specifies to also search the ancestors of element for custom attributes.
+        public static T GetAttribute<T>(this Type type, bool inherit) where T : Attribute
+        {
+            object[] customAttributes = type.GetCustomAttributes(typeof(T), inherit);
+            if (customAttributes.Length == 0)
+            {
+                return null;
+            }
+
+            return (T)customAttributes[0];
+        }
+
+        //
+        // 摘要:
+        //     Determines whether a type implements or inherits from another type.
+        //
+        // 参数:
+        //   type:
+        //     The type.
+        //
+        //   to:
+        //     To.
+        public static bool ImplementsOrInherits(this Type type, Type to)
+        {
+            return to.IsAssignableFrom(type);
+        }
+
+        //
+        // 摘要:
+        //     Determines whether a type implements an open generic interface or class such
+        //     as IList<> or List<>.
+        //
+        // 参数:
+        //   candidateType:
+        //     Type of the candidate.
+        //
+        //   openGenericType:
+        //     Type of the open generic type.
+        public static bool ImplementsOpenGenericType(this Type candidateType, Type openGenericType)
+        {
+            if (openGenericType.IsInterface)
+            {
+                return candidateType.ImplementsOpenGenericInterface(openGenericType);
+            }
+
+            return candidateType.ImplementsOpenGenericClass(openGenericType);
+        }
+
+        //
+        // 摘要:
+        //     Determines whether a type implements an open generic interface such as IList<>.
+        //
+        //
+        // 参数:
+        //   candidateType:
+        //     Type of the candidate.
+        //
+        //   openGenericInterfaceType:
+        //     Type of the open generic interface.
+        //
+        // 异常:
+        //   T:System.ArgumentNullException:
+        //
+        //   T:System.ArgumentException:
+        //     Type " + openGenericInterfaceType.Name + " is not a generic type definition and
+        //     an interface.
+        public static bool ImplementsOpenGenericInterface(this Type candidateType, Type openGenericInterfaceType)
+        {
+            if (candidateType == openGenericInterfaceType)
+            {
+                return true;
+            }
+
+            if (candidateType.IsGenericType && candidateType.GetGenericTypeDefinition() == openGenericInterfaceType)
+            {
+                return true;
+            }
+
+            Type[] interfaces = candidateType.GetInterfaces();
+            for (int i = 0; i < interfaces.Length; i++)
+            {
+                if (interfaces[i].ImplementsOpenGenericInterface(openGenericInterfaceType))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        //
+        // 摘要:
+        //     Determines whether a type implements an open generic class such as List<>.
+        //
+        // 参数:
+        //   candidateType:
+        //     Type of the candidate.
+        //
+        //   openGenericType:
+        //     Type of the open generic interface.
+        public static bool ImplementsOpenGenericClass(this Type candidateType, Type openGenericType)
+        {
+            if (candidateType.IsGenericType && candidateType.GetGenericTypeDefinition() == openGenericType)
+            {
+                return true;
+            }
+
+            Type baseType = candidateType.BaseType;
+            if (baseType != null && baseType.ImplementsOpenGenericClass(openGenericType))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        //
+        // 摘要:
+        //     Gets the generic arguments of an inherited open generic class or interface.
+        //
+        // 参数:
+        //   candidateType:
+        //     Type of the candidate.
+        //
+        //   openGenericType:
+        //     The open generic type to get the arguments of.
+        public static Type[] GetArgumentsOfInheritedOpenGenericType(this Type candidateType, Type openGenericType)
+        {
+            if (openGenericType.IsInterface)
+            {
+                return candidateType.GetArgumentsOfInheritedOpenGenericInterface(openGenericType);
+            }
+
+            return candidateType.GetArgumentsOfInheritedOpenGenericClass(openGenericType);
+        }
+
+        //
+        // 摘要:
+        //     Gets the generic arguments of an inherited open generic class.
+        //
+        // 参数:
+        //   candidateType:
+        //     Type of the candidate.
+        //
+        //   openGenericType:
+        //     Type of the open generic class.
+        public static Type[] GetArgumentsOfInheritedOpenGenericClass(this Type candidateType, Type openGenericType)
+        {
+            if (candidateType.IsGenericType && candidateType.GetGenericTypeDefinition() == openGenericType)
+            {
+                return candidateType.GetGenericArguments();
+            }
+
+            Type baseType = candidateType.BaseType;
+            if (baseType != null)
+            {
+                return baseType.GetArgumentsOfInheritedOpenGenericClass(openGenericType);
+            }
+
+            return null;
+        }
+
+        //
+        // 摘要:
+        //     Gets the generic arguments of an inherited open generic interface.
+        //
+        // 参数:
+        //   candidateType:
+        //     Type of the candidate.
+        //
+        //   openGenericInterfaceType:
+        //     Type of the open generic interface.
+        public static Type[] GetArgumentsOfInheritedOpenGenericInterface(this Type candidateType, Type openGenericInterfaceType)
+        {
+            if ((openGenericInterfaceType == GenericListInterface || openGenericInterfaceType == GenericCollectionInterface) && candidateType.IsArray)
+            {
+                return new Type[1] { candidateType.GetElementType() };
+            }
+
+            if (candidateType == openGenericInterfaceType)
+            {
+                return candidateType.GetGenericArguments();
+            }
+
+            if (candidateType.IsGenericType && candidateType.GetGenericTypeDefinition() == openGenericInterfaceType)
+            {
+                return candidateType.GetGenericArguments();
+            }
+
+            Type[] interfaces = candidateType.GetInterfaces();
+            foreach (Type type in interfaces)
+            {
+                if (type.IsGenericType)
+                {
+                    Type[] argumentsOfInheritedOpenGenericInterface = type.GetArgumentsOfInheritedOpenGenericInterface(openGenericInterfaceType);
+                    if (argumentsOfInheritedOpenGenericInterface != null)
+                    {
+                        return argumentsOfInheritedOpenGenericInterface;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+
+        /// <summary>
+        /// Gets all members from a given type, including members from all base types if the System.Reflection.BindingFlags.DeclaredOnly flag isn't set.
+        /// </summary>
+        public static IEnumerable<MemberInfo> GetAllMembers(this Type type, BindingFlags flags = BindingFlags.Default)
+        {
+            Type currentType = type;
+            if ((flags & BindingFlags.DeclaredOnly) == BindingFlags.DeclaredOnly)
+            {
+                MemberInfo[] members = currentType.GetMembers(flags);
+                for (int i = 0; i < members.Length; i++)
+                {
+                    yield return members[i];
+                }
+
+                yield break;
+            }
+
+            flags |= BindingFlags.DeclaredOnly;
+            do
+            {
+                MemberInfo[] members = currentType.GetMembers(flags);
+                for (int i = 0; i < members.Length; i++)
+                {
+                    yield return members[i];
+                }
+
+                currentType = currentType.BaseType;
+            }
+            while (currentType != null);
+        }
+
+        /// <summary>
+        /// Gets all members from a given type, including members from all base types.
+        /// </summary>
+        public static IEnumerable<MemberInfo> GetAllMembers(this Type type, string name, BindingFlags flags = BindingFlags.Default)
+        {
+            foreach (MemberInfo allMember in type.GetAllMembers(flags))
+            {
+                if (!(allMember.Name != name))
+                {
+                    yield return allMember;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets all members of a specific type from a type, including members from all base types, if the System.Reflection.BindingFlags.DeclaredOnly flag isn't set.
+        /// </summary>
+        public static IEnumerable<T> GetAllMembers<T>(this Type type, BindingFlags flags = BindingFlags.Default) where T : MemberInfo
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException("type");
+            }
+
+            if (type == typeof(object))
+            {
+                yield break;
+            }
+
+            Type currentType = type;
+            if ((flags & BindingFlags.DeclaredOnly) == BindingFlags.DeclaredOnly)
+            {
+                MemberInfo[] members = currentType.GetMembers(flags);
+                foreach (MemberInfo memberInfo in members)
+                {
+                    T val = memberInfo as T;
+                    if ((MemberInfo)val != (MemberInfo)null)
+                    {
+                        yield return val;
+                    }
+                }
+
+                yield break;
+            }
+
+            flags |= BindingFlags.DeclaredOnly;
+            do
+            {
+                MemberInfo[] members = currentType.GetMembers(flags);
+                foreach (MemberInfo memberInfo2 in members)
+                {
+                    T val2 = memberInfo2 as T;
+                    if ((MemberInfo)val2 != (MemberInfo)null)
+                    {
+                        yield return val2;
+                    }
+                }
+
+                currentType = currentType.BaseType;
+            }
+            while (currentType != null);
+        }
+
+        /// <summary>
+        /// Gets the generic type definition of an open generic base type.
+        /// </summary>
+        public static Type GetGenericBaseType(this Type type, Type baseType)
+        {
+            int depthCount;
+            return type.GetGenericBaseType(baseType, out depthCount);
+        }
+
+        /// <summary>
+        /// Gets the generic type definition of an open generic base type.
+        /// </summary>
+        public static Type GetGenericBaseType(this Type type, Type baseType, out int depthCount)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException("type");
+            }
+
+            if (baseType == null)
+            {
+                throw new ArgumentNullException("baseType");
+            }
+
+            if (!baseType.IsGenericType)
+            {
+                throw new ArgumentException("Type " + baseType.Name + " is not a generic type.");
+            }
+
+            if (!type.InheritsFrom(baseType))
+            {
+                throw new ArgumentException("Type " + type.Name + " does not inherit from " + baseType.Name + ".");
+            }
+
+            Type type2 = type;
+            depthCount = 0;
+            while (type2 != null && (!type2.IsGenericType || type2.GetGenericTypeDefinition() != baseType))
+            {
+                depthCount++;
+                type2 = type2.BaseType;
+            }
+
+            if (type2 == null)
+            {
+                throw new ArgumentException(type.Name + " is assignable from " + baseType.Name + ", but base type was not found?");
+            }
+
+            return type2;
+        }
+
+        /// <summary>
+        /// Returns a lazy enumerable of all the base types of this type including interfaces and classes
+        /// </summary>
+        public static IEnumerable<Type> GetBaseTypes(this Type type, bool includeSelf = false)
+        {
+            IEnumerable<Type> enumerable = type.GetBaseClasses(includeSelf).Concat(type.GetInterfaces());
+            if (includeSelf && type.IsInterface)
+            {
+                enumerable.Concat(new Type[1] { type });
+            }
+
+            return enumerable;
+        }
+
+        /// <summary>
+        /// Returns a lazy enumerable of all the base classes of this type
+        /// </summary>
+        public static IEnumerable<Type> GetBaseClasses(this Type type, bool includeSelf = false)
+        {
+            if (!(type == null) && !(type.BaseType == null))
+            {
+                if (includeSelf)
+                {
+                    yield return type;
+                }
+
+                Type current = type.BaseType;
+                while (current != null)
+                {
+                    yield return current;
+                    current = current.BaseType;
+                }
+            }
+        }
+
+        private static string GetMaybeSimplifiedTypeName(this Type type)
+        {
+            if (TypeNameAlternatives.TryGetValue(type, out var value))
+            {
+                return value;
+            }
+
+            return type.Name;
+        }
+
+        /// <summary>
+        /// Returns a nicely formatted name of a type.
+        /// </summary>
+        public static string GetNiceName(this Type type)
+        {
+            if (type.IsNested && !type.IsGenericParameter)
+            {
+                return type.DeclaringType.GetNiceName() + "." + GetCachedNiceName(type);
+            }
+
+            return GetCachedNiceName(type);
+        }
+
+        /// <summary>
+        /// Returns a nicely formatted full name of a type.
+        /// </summary>
+        public static string GetNiceFullName(this Type type)
+        {
+            if (type.IsNested && !type.IsGenericParameter)
+            {
+                return type.DeclaringType.GetNiceFullName() + "." + GetCachedNiceName(type);
+            }
+
+            string text = GetCachedNiceName(type);
+            if (type.Namespace != null)
+            {
+                text = type.Namespace + "." + text;
+            }
+
+            return text;
+        }
+
+        /// <summary>
+        /// Gets the name of the compilable nice.
+        /// </summary>
+        public static string GetCompilableNiceName(this Type type)
+        {
+            return type.GetNiceName().Replace('<', '_').Replace('>', '_')
+                .TrimEnd(new char[1] { '_' });
+        }
+
+        /// <summary>
+        /// Gets the full name of the compilable nice.
+        /// </summary>
+        public static string GetCompilableNiceFullName(this Type type)
+        {
+            return type.GetNiceFullName().Replace('<', '_').Replace('>', '_')
+                .TrimEnd(new char[1] { '_' });
+        }
+
+        /// <summary>
+        /// Returns the first found custom attribute of type T on this type Returns null if none was found
+        /// </summary>
+        public static T GetCustomAttribute<T>(this Type type, bool inherit) where T : Attribute
+        {
+            object[] customAttributes = type.GetCustomAttributes(typeof(T), inherit);
+            if (customAttributes.Length == 0)
+            {
+                return null;
+            }
+
+            return customAttributes[0] as T;
+        }
+
+        /// <summary>
+        /// Returns the first found non-inherited custom attribute of type T on this type
+        /// Returns null if none was found
+        /// </summary>
+        public static T GetCustomAttribute<T>(this Type type) where T : Attribute
+        {
+            return type.GetCustomAttribute<T>(inherit: false);
+        }
+
+        /// <summary>
+        /// Gets all attributes of type T. 
+        /// </summary>
+        public static IEnumerable<T> GetCustomAttributes<T>(this Type type) where T : Attribute
+        {
+            return type.GetCustomAttributes<T>(inherit: false);
+        }
+
+        /// <summary>
+        /// Gets all attributes of type T. 
+        /// </summary>
+        public static IEnumerable<T> GetCustomAttributes<T>(this Type type, bool inherit) where T : Attribute
+        {
+            object[] attrs = type.GetCustomAttributes(typeof(T), inherit);
+            for (int i = 0; i < attrs.Length; i++)
+            {
+                yield return attrs[i] as T;
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the attribute whose type is specified by the generic argument is defined on this type
+        /// </summary>
+        public static bool IsDefined<T>(this Type type) where T : Attribute
+        {
+            return type.IsDefined(typeof(T), inherit: false);
+        }
+
+        /// <summary>
+        /// Returns true if the attribute whose type is specified by the generic argument is defined on this type
+        /// </summary>
+        public static bool IsDefined<T>(this Type type, bool inherit) where T : Attribute
+        {
+            return type.IsDefined(typeof(T), inherit);
+        }
+
+        //Determines whether a type inherits or implements another type. Also include support for open generic base types such as List<>. 
+        public static bool InheritsFrom<TBase>(this Type type)
+        {
+            return type.InheritsFrom(typeof(TBase));
+        }
+
+        //Determines whether a type inherits or implements another type. Also include support for open generic base types such as List<>. 
+        public static bool InheritsFrom(this Type type, Type baseType)
+        {
+            if (baseType.IsAssignableFrom(type))
+            {
+                return true;
+            }
+
+            if (type.IsInterface && !baseType.IsInterface)
+            {
+                return false;
+            }
+
+            if (baseType.IsInterface)
+            {
+                return type.GetInterfaces().Contains(baseType);
+            }
+
+            Type type2 = type;
+            while (type2 != null)
+            {
+                if (type2 == baseType)
+                {
+                    return true;
+                }
+
+                if (baseType.IsGenericTypeDefinition && type2.IsGenericType && type2.GetGenericTypeDefinition() == baseType)
+                {
+                    return true;
+                }
+
+                type2 = type2.BaseType;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the number of base types between given type and baseType.
+        /// </summary> 
+        public static int GetInheritanceDistance(this Type type, Type baseType)
+        {
+            if (type == baseType)
+            {
+                return 0;
+            }
+
+            Type type2;
+            Type type3;
+            if (type.IsAssignableFrom(baseType))
+            {
+                type2 = type;
+                type3 = baseType;
+            }
+            else
+            {
+                if (!baseType.IsAssignableFrom(type))
+                {
+                    throw new ArgumentException("Cannot assign types '" + type.GetNiceName() + "' and '" + baseType.GetNiceName() + "' to each other.");
+                }
+
+                type2 = baseType;
+                type3 = type;
+            }
+
+            Type type4 = type3;
+            int num = 0;
+            if (type2.IsInterface)
+            {
+                while (type4 != null && type4 != typeof(object))
+                {
+                    num++;
+                    type4 = type4.BaseType;
+                    Type[] interfaces = type4.GetInterfaces();
+                    for (int i = 0; i < interfaces.Length; i++)
+                    {
+                        if (interfaces[i] == type2)
+                        {
+                            type4 = null;
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                while (type4 != type2 && type4 != null && type4 != typeof(object))
+                {
+                    num++;
+                    type4 = type4.BaseType;
+                }
+            }
+
+            return num;
+        }
+
+        /// <summary>
+        /// Determines whether a method has the specified parameter types.
+        /// </summary>
+        public static bool HasParamaters(this MethodInfo methodInfo, IList<Type> paramTypes, bool inherit = true)
+        {
+            ParameterInfo[] parameters = methodInfo.GetParameters();
+            if (parameters.Length == paramTypes.Count)
+            {
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    if (inherit && !paramTypes[i].InheritsFrom(parameters[i].ParameterType))
+                    {
+                        return false;
+                    }
+
+                    if (parameters[i].ParameterType != paramTypes[i])
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// FieldInfo will return the fieldType, propertyInfo the PropertyType, MethodInfo the return type and EventInfo will return the EventHandlerType. 
+        /// </summary> 
+        public static Type GetReturnType(this MemberInfo memberInfo)
+        {
+            FieldInfo fieldInfo = memberInfo as FieldInfo;
+            if (fieldInfo != null)
+            {
+                return fieldInfo.FieldType;
+            }
+
+            PropertyInfo propertyInfo = memberInfo as PropertyInfo;
+            if (propertyInfo != null)
+            {
+                return propertyInfo.PropertyType;
+            }
+
+            MethodInfo methodInfo = memberInfo as MethodInfo;
+            if (methodInfo != null)
+            {
+                return methodInfo.ReturnType;
+            }
+
+            EventInfo eventInfo = memberInfo as EventInfo;
+            if (eventInfo != null)
+            {
+                return eventInfo.EventHandlerType;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the value contained in a given System.Reflection.MemberInfo. Currently only System.Reflection.FieldInfo and System.Reflection.PropertyInfo is supported.
+        /// </summary>
+        /// <param name="member">The System.Reflection.MemberInfo to get the value of.</param>
+        /// <param name="obj"> The instance to get the value from.</param>
+        /// <returns>The value contained in the given System.Reflection.MemberInfo.</returns>
+        /// <exception cref="ArgumentException">Can't get the value of the given System.Reflection.MemberInfo type.</exception>
+        public static object GetMemberValue(this MemberInfo member, object obj)
+        {
+            if (member is FieldInfo)
+            {
+                return (member as FieldInfo).GetValue(obj);
+            }
+
+            if (member is PropertyInfo)
+            {
+                return (member as PropertyInfo).GetGetMethod(nonPublic: true).Invoke(obj, null);
+            }
+
+            throw new ArgumentException("Can't get the value of a " + member.GetType().Name);
+        }
+
+        /// <summary>
+        /// Sets the value of a given MemberInfo. Currently only System.Reflection.FieldInfo and System.Reflection.PropertyInfo is supported.
+        /// </summary>
+        /// <param name="member">The System.Reflection.MemberInfo to set the value of.</param>
+        /// <param name="obj">The object to set the value on.</param>
+        /// <param name="value">The value to set.</param>
+        /// <exception cref="ArgumentException">Property has no setter or Can't set the value of the given System.Reflection.MemberInfo type.</exception>
+        public static void SetMemberValue(this MemberInfo member, object obj, object value)
+        {
+            if (member is FieldInfo)
+            {
+                (member as FieldInfo).SetValue(obj, value);
+                return;
+            }
+
+            if (member is PropertyInfo)
+            {
+                MethodInfo setMethod = (member as PropertyInfo).GetSetMethod(nonPublic: true);
+                if (setMethod != null)
+                {
+                    setMethod.Invoke(obj, new object[1] { value });
+                    return;
+                }
+
+                throw new ArgumentException("Property " + member.Name + " has no setter");
+            }
+
+            throw new ArgumentException("Can't set the value of a " + member.GetType().Name);
+        }
+
+        /// <summary>
+        /// Tries to infer a set of valid generic parameters for a generic type definition, given a subset of known parameters.
+        /// </summary>
+        /// <param name="genericTypeDefinition">The generic type definition to attempt to infer parameters for.</param>
+        /// <param name="inferredParams">The inferred parameters, if inferral was successful.</param>
+        /// <param name="knownParameters">The known parameters to infer from.</param>
+        /// <returns>True if the parameters could be inferred, otherwise, false.</returns>
+        /// <exception cref="ArgumentNullException">genericTypeDefinition is null or knownParameters is null</exception>
+        /// <exception cref="ArgumentException">The genericTypeDefinition parameter must be a generic type definition.</exception>
+        public static bool TryInferGenericParameters(this Type genericTypeDefinition, out Type[] inferredParams, params Type[] knownParameters)
+        {
+            if (genericTypeDefinition == null)
+            {
+                throw new ArgumentNullException("genericTypeDefinition");
+            }
+
+            if (knownParameters == null)
+            {
+                throw new ArgumentNullException("knownParameters");
+            }
+
+            if (!genericTypeDefinition.IsGenericType)
+            {
+                throw new ArgumentException("The genericTypeDefinition parameter must be a generic type.");
+            }
+
+            lock (GenericConstraintsSatisfaction_LOCK)
+            {
+                Dictionary<Type, Type> genericConstraintsSatisfactionInferredParameters = GenericConstraintsSatisfactionInferredParameters;
+                genericConstraintsSatisfactionInferredParameters.Clear();
+                HashSet<Type> genericConstraintsSatisfactionTypesToCheck = GenericConstraintsSatisfactionTypesToCheck;
+                genericConstraintsSatisfactionTypesToCheck.Clear();
+                List<Type> genericConstraintsSatisfactionTypesToCheck_ToAdd = GenericConstraintsSatisfactionTypesToCheck_ToAdd;
+                genericConstraintsSatisfactionTypesToCheck_ToAdd.Clear();
+                for (int i = 0; i < knownParameters.Length; i++)
+                {
+                    genericConstraintsSatisfactionTypesToCheck.Add(knownParameters[i]);
+                }
+
+                Type[] genericArguments = genericTypeDefinition.GetGenericArguments();
+                if (!genericTypeDefinition.IsGenericTypeDefinition)
+                {
+                    Type[] array = genericArguments;
+                    genericTypeDefinition = genericTypeDefinition.GetGenericTypeDefinition();
+                    genericArguments = genericTypeDefinition.GetGenericArguments();
+                    int num = 0;
+                    for (int j = 0; j < array.Length; j++)
+                    {
+                        if (!array[j].IsGenericParameter && (!array[j].IsGenericType || array[j].IsFullyConstructedGenericType()))
+                        {
+                            genericConstraintsSatisfactionInferredParameters[genericArguments[j]] = array[j];
+                        }
+                        else
+                        {
+                            num++;
+                        }
+                    }
+
+                    if (num == knownParameters.Length)
+                    {
+                        int num2 = 0;
+                        for (int k = 0; k < array.Length; k++)
+                        {
+                            if (array[k].IsGenericParameter)
+                            {
+                                array[k] = knownParameters[num2++];
+                            }
+                        }
+
+                        if (genericTypeDefinition.AreGenericConstraintsSatisfiedBy(array))
+                        {
+                            inferredParams = array;
+                            return true;
+                        }
+                    }
+                }
+
+                if (genericArguments.Length == knownParameters.Length && genericTypeDefinition.AreGenericConstraintsSatisfiedBy(knownParameters))
+                {
+                    inferredParams = knownParameters;
+                    return true;
+                }
+
+                Type[] array2 = genericArguments;
+                foreach (Type type in array2)
+                {
+                    Type[] genericParameterConstraints = type.GetGenericParameterConstraints();
+                    Type[] array3 = genericParameterConstraints;
+                    foreach (Type type2 in array3)
+                    {
+                        foreach (Type item in genericConstraintsSatisfactionTypesToCheck)
+                        {
+                            if (!type2.IsGenericType)
+                            {
+                                continue;
+                            }
+
+                            Type genericTypeDefinition2 = type2.GetGenericTypeDefinition();
+                            Type[] genericArguments2 = type2.GetGenericArguments();
+                            Type[] array4;
+                            if (item.IsGenericType && genericTypeDefinition2 == item.GetGenericTypeDefinition())
+                            {
+                                array4 = item.GetGenericArguments();
+                            }
+                            else if (genericTypeDefinition2.IsInterface && item.ImplementsOpenGenericInterface(genericTypeDefinition2))
+                            {
+                                array4 = item.GetArgumentsOfInheritedOpenGenericInterface(genericTypeDefinition2);
+                            }
+                            else
+                            {
+                                if (!genericTypeDefinition2.IsClass || !item.ImplementsOpenGenericClass(genericTypeDefinition2))
+                                {
+                                    continue;
+                                }
+
+                                array4 = item.GetArgumentsOfInheritedOpenGenericClass(genericTypeDefinition2);
+                            }
+
+                            genericConstraintsSatisfactionInferredParameters[type] = item;
+                            genericConstraintsSatisfactionTypesToCheck_ToAdd.Add(item);
+                            for (int n = 0; n < genericArguments2.Length; n++)
+                            {
+                                if (genericArguments2[n].IsGenericParameter)
+                                {
+                                    genericConstraintsSatisfactionInferredParameters[genericArguments2[n]] = array4[n];
+                                    genericConstraintsSatisfactionTypesToCheck_ToAdd.Add(array4[n]);
+                                }
+                            }
+                        }
+
+                        foreach (Type item2 in genericConstraintsSatisfactionTypesToCheck_ToAdd)
+                        {
+                            genericConstraintsSatisfactionTypesToCheck.Add(item2);
+                        }
+
+                        genericConstraintsSatisfactionTypesToCheck_ToAdd.Clear();
+                    }
+                }
+
+                if (genericConstraintsSatisfactionInferredParameters.Count == genericArguments.Length)
+                {
+                    inferredParams = new Type[genericConstraintsSatisfactionInferredParameters.Count];
+                    for (int num3 = 0; num3 < genericArguments.Length; num3++)
+                    {
+                        inferredParams[num3] = genericConstraintsSatisfactionInferredParameters[genericArguments[num3]];
+                    }
+
+                    if (genericTypeDefinition.AreGenericConstraintsSatisfiedBy(inferredParams))
+                    {
+                        return true;
+                    }
+                }
+
+                inferredParams = null;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Checks whether an array of types satisfy the constraints of a given generic type definition.<para></para>
+        /// If this method returns true, the given parameters can be safely used with System.Type.MakeGenericType(System.Type[])
+        /// with the given generic type definition.
+        /// </summary>
+        /// <param name="genericType">The generic type definition to check.</param>
+        /// <param name="parameters">The parameters to check validity for.</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">genericType is null or types is null</exception>
+        /// <exception cref="ArgumentException">The genericType parameter must be a generic type definition.</exception>
+        public static bool AreGenericConstraintsSatisfiedBy(this Type genericType, params Type[] parameters)
+        {
+            if (genericType == null)
+            {
+                throw new ArgumentNullException("genericType");
+            }
+
+            if (parameters == null)
+            {
+                throw new ArgumentNullException("parameters");
+            }
+
+            if (!genericType.IsGenericType)
+            {
+                throw new ArgumentException("The genericTypeDefinition parameter must be a generic type.");
+            }
+
+            return AreGenericConstraintsSatisfiedBy(genericType.GetGenericArguments(), parameters);
+        }
+
+        /// <summary>
+        /// Checks whether an array of types satisfy the constraints of a given generic method definition.<para></para>
+        /// If this method returns true, the given parameters can be safely used with System.Reflection.MethodInfo.MakeGenericMethod(System.Type[])
+        /// with the given generic method definition.
+        /// </summary>
+        /// <param name="genericMethod">The generic method definition to check.</param>
+        /// <param name="parameters">The parameters to check validity for.</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">genericType is null or types is null</exception>
+        /// <exception cref="ArgumentException">The genericMethod parameter must be a generic method definition.</exception>
+        public static bool AreGenericConstraintsSatisfiedBy(this MethodBase genericMethod, params Type[] parameters)
+        {
+            if (genericMethod == null)
+            {
+                throw new ArgumentNullException("genericMethod");
+            }
+
+            if (parameters == null)
+            {
+                throw new ArgumentNullException("parameters");
+            }
+
+            if (!genericMethod.IsGenericMethod)
+            {
+                throw new ArgumentException("The genericMethod parameter must be a generic method.");
+            }
+
+            return AreGenericConstraintsSatisfiedBy(genericMethod.GetGenericArguments(), parameters);
+        }
+
+        public static bool AreGenericConstraintsSatisfiedBy(Type[] definitions, Type[] parameters)
+        {
+            if (definitions.Length != parameters.Length)
+            {
+                return false;
+            }
+
+            lock (GenericConstraintsSatisfaction_LOCK)
+            {
+                Dictionary<Type, Type> genericConstraintsSatisfactionResolvedMap = GenericConstraintsSatisfactionResolvedMap;
+                genericConstraintsSatisfactionResolvedMap.Clear();
+                for (int i = 0; i < definitions.Length; i++)
+                {
+                    Type genericParameterDefinition = definitions[i];
+                    Type parameterType = parameters[i];
+                    if (!genericParameterDefinition.GenericParameterIsFulfilledBy(parameterType, genericConstraintsSatisfactionResolvedMap))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        public static bool GenericParameterIsFulfilledBy(this Type genericParameterDefinition, Type parameterType)
+        {
+            lock (GenericConstraintsSatisfaction_LOCK)
+            {
+                GenericConstraintsSatisfactionResolvedMap.Clear();
+                return genericParameterDefinition.GenericParameterIsFulfilledBy(parameterType, GenericConstraintsSatisfactionResolvedMap);
+            }
+        }
+
+        /// <summary>
+        /// Before calling this method we must ALWAYS hold a lock on the GenericConstraintsSatisfaction_LOCK object, as that is an implicit assumption it works with.
+        /// </summary>
+        private static bool GenericParameterIsFulfilledBy(this Type genericParameterDefinition, Type parameterType, Dictionary<Type, Type> resolvedMap, HashSet<Type> processedParams = null)
+        {
+            if (genericParameterDefinition == null)
+            {
+                throw new ArgumentNullException("genericParameterDefinition");
+            }
+
+            if (parameterType == null)
+            {
+                throw new ArgumentNullException("parameterType");
+            }
+
+            if (resolvedMap == null)
+            {
+                throw new ArgumentNullException("resolvedMap");
+            }
+
+            if (!genericParameterDefinition.IsGenericParameter && genericParameterDefinition == parameterType)
+            {
+                return true;
+            }
+
+            if (!genericParameterDefinition.IsGenericParameter)
+            {
+                return false;
+            }
+
+            if (processedParams == null)
+            {
+                processedParams = GenericConstraintsSatisfactionProcessedParams;
+                processedParams.Clear();
+            }
+
+            processedParams.Add(genericParameterDefinition);
+            GenericParameterAttributes genericParameterAttributes = genericParameterDefinition.GenericParameterAttributes;
+            if (genericParameterAttributes != 0)
+            {
+                if ((genericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) == GenericParameterAttributes.NotNullableValueTypeConstraint)
+                {
+                    if (!parameterType.IsValueType || (parameterType.IsGenericType && parameterType.GetGenericTypeDefinition() == typeof(Nullable<>)))
+                    {
+                        return false;
+                    }
+                }
+                else if ((genericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) == GenericParameterAttributes.ReferenceTypeConstraint && parameterType.IsValueType)
+                {
+                    return false;
+                }
+
+                if ((genericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) == GenericParameterAttributes.DefaultConstructorConstraint && (parameterType.IsAbstract || (!parameterType.IsValueType && parameterType.GetConstructor(Type.EmptyTypes) == null)))
+                {
+                    return false;
+                }
+            }
+
+            if (resolvedMap.ContainsKey(genericParameterDefinition) && !parameterType.IsAssignableFrom(resolvedMap[genericParameterDefinition]))
+            {
+                return false;
+            }
+
+            Type[] genericParameterConstraints = genericParameterDefinition.GetGenericParameterConstraints();
+            for (int i = 0; i < genericParameterConstraints.Length; i++)
+            {
+                Type type = genericParameterConstraints[i];
+                if (type.IsGenericParameter && resolvedMap.ContainsKey(type))
+                {
+                    type = resolvedMap[type];
+                }
+
+                if (type.IsGenericParameter)
+                {
+                    if (!type.GenericParameterIsFulfilledBy(parameterType, resolvedMap, processedParams))
+                    {
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                if (type.IsClass || type.IsInterface || type.IsValueType)
+                {
+                    if (type.IsGenericType)
+                    {
+                        Type genericTypeDefinition = type.GetGenericTypeDefinition();
+                        Type[] genericArguments = type.GetGenericArguments();
+                        Type[] array;
+                        if (parameterType.IsGenericType && genericTypeDefinition == parameterType.GetGenericTypeDefinition())
+                        {
+                            array = parameterType.GetGenericArguments();
+                        }
+                        else if (genericTypeDefinition.IsClass)
+                        {
+                            if (!parameterType.ImplementsOpenGenericClass(genericTypeDefinition))
+                            {
+                                return false;
+                            }
+
+                            array = parameterType.GetArgumentsOfInheritedOpenGenericClass(genericTypeDefinition);
+                        }
+                        else
+                        {
+                            if (!parameterType.ImplementsOpenGenericInterface(genericTypeDefinition))
+                            {
+                                return false;
+                            }
+
+                            array = parameterType.GetArgumentsOfInheritedOpenGenericInterface(genericTypeDefinition);
+                        }
+
+                        for (int j = 0; j < genericArguments.Length; j++)
+                        {
+                            Type type2 = genericArguments[j];
+                            Type type3 = array[j];
+                            if (type2.IsGenericParameter && resolvedMap.ContainsKey(type2))
+                            {
+                                type2 = resolvedMap[type2];
+                            }
+
+                            if (type2.IsGenericParameter)
+                            {
+                                if (!processedParams.Contains(type2) && !type2.GenericParameterIsFulfilledBy(type3, resolvedMap, processedParams))
+                                {
+                                    return false;
+                                }
+                            }
+                            else if (type2 != type3 && !type2.IsAssignableFrom(type3))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                    else if (!type.IsAssignableFrom(parameterType))
+                    {
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                throw new Exception("Unknown parameter constraint type! " + type.GetNiceName());
+            }
+
+            resolvedMap[genericParameterDefinition] = parameterType;
+            return true;
+        }
+
+        /// <summary>
+        ///  
+        /// </summary>
+        public static string GetGenericConstraintsString(this Type type, bool useFullTypeNames = false)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException("type");
+            }
+
+            if (!type.IsGenericTypeDefinition)
+            {
+                throw new ArgumentException("Type '" + type.GetNiceName() + "' is not a generic type definition!");
+            }
+
+            Type[] genericArguments = type.GetGenericArguments();
+            string[] array = new string[genericArguments.Length];
+            for (int i = 0; i < genericArguments.Length; i++)
+            {
+                array[i] = genericArguments[i].GetGenericParameterConstraintsString(useFullTypeNames);
+            }
+
+            return string.Join(" ", array);
+        }
+
+
+        /// <summary>
+        /// Formats a string with the specified generic parameter constraints on any given type. Example output: where T : class
+        /// </summary>
+        public static string GetGenericParameterConstraintsString(this Type type, bool useFullTypeNames = false)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException("type");
+            }
+
+            if (!type.IsGenericParameter)
+            {
+                throw new ArgumentException("Type '" + type.GetNiceName() + "' is not a generic parameter!");
+            }
+
+            StringBuilder stringBuilder = new StringBuilder();
+            bool flag = false;
+            GenericParameterAttributes genericParameterAttributes = type.GenericParameterAttributes;
+            if ((genericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) == GenericParameterAttributes.NotNullableValueTypeConstraint)
+            {
+                stringBuilder.Append("where ").Append(type.Name).Append(" : struct");
+                flag = true;
+            }
+            else if ((genericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) == GenericParameterAttributes.ReferenceTypeConstraint)
+            {
+                stringBuilder.Append("where ").Append(type.Name).Append(" : class");
+                flag = true;
+            }
+
+            if ((genericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) == GenericParameterAttributes.DefaultConstructorConstraint)
+            {
+                if (flag)
+                {
+                    stringBuilder.Append(", new()");
+                }
+                else
+                {
+                    stringBuilder.Append("where ").Append(type.Name).Append(" : new()");
+                    flag = true;
+                }
+            }
+
+            Type[] genericParameterConstraints = type.GetGenericParameterConstraints();
+            if (genericParameterConstraints.Length != 0)
+            {
+                foreach (Type type2 in genericParameterConstraints)
+                {
+                    if (flag)
+                    {
+                        stringBuilder.Append(", ");
+                        if (useFullTypeNames)
+                        {
+                            stringBuilder.Append(type2.GetNiceFullName());
+                        }
+                        else
+                        {
+                            stringBuilder.Append(type2.GetNiceName());
+                        }
+
+                        continue;
+                    }
+
+                    stringBuilder.Append("where ").Append(type.Name).Append(" : ");
+                    if (useFullTypeNames)
+                    {
+                        stringBuilder.Append(type2.GetNiceFullName());
+                    }
+                    else
+                    {
+                        stringBuilder.Append(type2.GetNiceName());
+                    }
+
+                    flag = true;
+                }
+            }
+
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Determines whether a generic type contains the specified generic argument constraints.
+        /// </summary>
+        public static bool GenericArgumentsContainsTypes(this Type type, params Type[] types)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException("type");
+            }
+
+            if (!type.IsGenericType)
+            {
+                return false;
+            }
+
+            bool[] array = new bool[types.Length];
+            Type[] genericArguments = type.GetGenericArguments();
+            Stack<Type> genericArgumentsContainsTypes_ArgsToCheckCached = GenericArgumentsContainsTypes_ArgsToCheckCached;
+            lock (genericArgumentsContainsTypes_ArgsToCheckCached)
+            {
+                genericArgumentsContainsTypes_ArgsToCheckCached.Clear();
+                for (int i = 0; i < genericArguments.Length; i++)
+                {
+                    genericArgumentsContainsTypes_ArgsToCheckCached.Push(genericArguments[i]);
+                }
+
+                while (genericArgumentsContainsTypes_ArgsToCheckCached.Count > 0)
+                {
+                    Type type2 = genericArgumentsContainsTypes_ArgsToCheckCached.Pop();
+                    for (int j = 0; j < types.Length; j++)
+                    {
+                        Type type3 = types[j];
+                        if (type3 == type2)
+                        {
+                            array[j] = true;
+                        }
+                        else if (type3.IsGenericTypeDefinition && type2.IsGenericType && !type2.IsGenericTypeDefinition && type2.GetGenericTypeDefinition() == type3)
+                        {
+                            array[j] = true;
+                        }
+                    }
+
+                    bool flag = true;
+                    for (int k = 0; k < array.Length; k++)
+                    {
+                        if (!array[k])
+                        {
+                            flag = false;
+                            break;
+                        }
+                    }
+
+                    if (flag)
+                    {
+                        return true;
+                    }
+
+                    if (type2.IsGenericType)
+                    {
+                        Type[] genericArguments2 = type2.GetGenericArguments();
+                        foreach (Type item in genericArguments2)
+                        {
+                            genericArgumentsContainsTypes_ArgsToCheckCached.Push(item);
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Determines whether a type is a fully constructed generic type.
+        /// </summary>
+        public static bool IsFullyConstructedGenericType(this Type type)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException("type");
+            }
+
+            if (type.IsGenericTypeDefinition)
+            {
+                return false;
+            }
+
+            if (type.HasElementType)
+            {
+                Type elementType = type.GetElementType();
+                if (elementType.IsGenericParameter || !elementType.IsFullyConstructedGenericType())
+                {
+                    return false;
+                }
+            }
+
+            Type[] genericArguments = type.GetGenericArguments();
+            foreach (Type type2 in genericArguments)
+            {
+                if (type2.IsGenericParameter)
+                {
+                    return false;
+                }
+
+                if (!type2.IsFullyConstructedGenericType())
+                {
+                    return false;
+                }
+            }
+
+            return !type.IsGenericTypeDefinition;
+        }
+
+        /// <summary>
+        /// Determines whether a type is nullable by ensuring the type is neither a PrimitiveType, ValueType or an Enum.
+        /// </summary>
+        public static bool IsNullableType(this Type type)
+        {
+            if (!type.IsPrimitive && !type.IsValueType)
+            {
+                return !type.IsEnum;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the enum bitmask in a ulong.
+        /// </summary>
+        public static ulong GetEnumBitmask(object value, Type enumType)
+        {
+            if (!enumType.IsEnum)
+            {
+                throw new ArgumentException("enumType");
+            }
+
+            try
+            {
+                return Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+            }
+            catch (OverflowException)
+            {
+                return (ulong)Convert.ToInt64(value, CultureInfo.InvariantCulture);
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating if the string is a reserved C# keyword.
+        /// </summary>
+        public static bool IsCSharpKeyword(string identifier)
+        {
+            return ReservedCSharpKeywords.Contains(identifier);
+        }
+
+        public static Type[] SafeGetTypes(this Assembly assembly)
+        {
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch
+            {
+                return Type.EmptyTypes;
+            }
+        }
+
+        public static bool SafeIsDefined(this Assembly assembly, Type attribute, bool inherit)
+        {
+            try
+            {
+                return assembly.IsDefined(attribute, inherit);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static object[] SafeGetCustomAttributes(this Assembly assembly, Type type, bool inherit)
+        {
+            try
+            {
+                return assembly.GetCustomAttributes(type, inherit);
+            }
+            catch
+            {
+                return new object[0];
+            }
+        }
+
+        #endregion
     }
 
     #endregion
@@ -5916,6 +8233,425 @@ namespace Diagram.Collections
             }
         }
     }
+
+
+    /// <summary>
+    /// Garbage free enumerator methods.
+    /// </summary>
+    public static class GarbageFreeIterators
+    {
+        /// <summary>
+        /// List iterator.
+        /// </summary>
+        public struct ListIterator<T> : IDisposable
+        {
+            private bool isNull;
+
+            private List<T> list;
+
+            private List<T>.Enumerator enumerator;
+
+            /// <summary>
+            /// Gets the current value.
+            /// </summary>
+            public T Current => enumerator.Current;
+
+            /// <summary>
+            /// Creates a list iterator.
+            /// </summary>
+            public ListIterator(List<T> list)
+            {
+                isNull = list == null;
+                if (isNull)
+                {
+                    this.list = null;
+                    enumerator = default(List<T>.Enumerator);
+                }
+                else
+                {
+                    this.list = list;
+                    enumerator = this.list.GetEnumerator();
+                }
+            }
+
+            /// <summary>
+            /// Gets the enumerator.
+            /// </summary>
+            public ListIterator<T> GetEnumerator()
+            {
+                return this;
+            }
+
+            /// <summary>
+            /// Moves to the next value.
+            /// </summary>
+            public bool MoveNext()
+            {
+                if (isNull)
+                {
+                    return false;
+                }
+
+                return enumerator.MoveNext();
+            }
+
+            /// <summary>
+            /// Disposes the iterator.
+            /// </summary>
+            public void Dispose()
+            {
+                enumerator.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Hashset iterator.
+        /// </summary>
+        public struct HashsetIterator<T> : IDisposable
+        {
+            private bool isNull;
+
+            private HashSet<T> hashset;
+
+            private HashSet<T>.Enumerator enumerator;
+
+            /// <summary>
+            /// Gets the current value.
+            /// </summary>
+            public T Current => enumerator.Current;
+
+            /// <summary>
+            /// Creates a hashset iterator.
+            /// </summary>
+            public HashsetIterator(HashSet<T> hashset)
+            {
+                isNull = hashset == null;
+                if (isNull)
+                {
+                    this.hashset = null;
+                    enumerator = default(HashSet<T>.Enumerator);
+                }
+                else
+                {
+                    this.hashset = hashset;
+                    enumerator = this.hashset.GetEnumerator();
+                }
+            }
+
+            /// <summary>
+            /// Gets the enumerator.
+            /// </summary>
+            public HashsetIterator<T> GetEnumerator()
+            {
+                return this;
+            }
+
+            /// <summary>
+            /// Moves to the next value.
+            /// </summary>
+            public bool MoveNext()
+            {
+                if (isNull)
+                {
+                    return false;
+                }
+
+                return enumerator.MoveNext();
+            }
+
+            /// <summary>
+            /// Disposes the iterator.
+            /// </summary>
+            public void Dispose()
+            {
+                enumerator.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Dictionary iterator.
+        /// </summary>
+        public struct DictionaryIterator<T1, T2> : IDisposable
+        {
+            private Dictionary<T1, T2> dictionary;
+
+            private Dictionary<T1, T2>.Enumerator enumerator;
+
+            private bool isNull;
+
+            /// <summary>
+            /// Gets the current value.
+            /// </summary>
+            public KeyValuePair<T1, T2> Current => enumerator.Current;
+
+            /// <summary>
+            /// Creates a dictionary iterator.
+            /// </summary>
+            public DictionaryIterator(Dictionary<T1, T2> dictionary)
+            {
+                isNull = dictionary == null;
+                if (isNull)
+                {
+                    this.dictionary = null;
+                    enumerator = default(Dictionary<T1, T2>.Enumerator);
+                }
+                else
+                {
+                    this.dictionary = dictionary;
+                    enumerator = this.dictionary.GetEnumerator();
+                }
+            }
+
+            /// <summary>
+            /// Gets the enumerator.
+            /// </summary>
+            public DictionaryIterator<T1, T2> GetEnumerator()
+            {
+                return this;
+            }
+
+            /// <summary>
+            /// Moves to the next value.
+            /// </summary>
+            public bool MoveNext()
+            {
+                if (isNull)
+                {
+                    return false;
+                }
+
+                return enumerator.MoveNext();
+            }
+
+            /// <summary>
+            /// Disposes the iterator.
+            /// </summary>
+            public void Dispose()
+            {
+                enumerator.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Dictionary value iterator.
+        /// </summary>
+        public struct DictionaryValueIterator<T1, T2> : IDisposable
+        {
+            private Dictionary<T1, T2> dictionary;
+
+            private Dictionary<T1, T2>.Enumerator enumerator;
+
+            private bool isNull;
+
+            //
+            // 摘要:
+            //     Gets the current value.
+            public T2 Current => enumerator.Current.Value;
+
+            /// <summary>
+            /// Creates a dictionary value iterator.
+            /// </summary>
+            public DictionaryValueIterator(Dictionary<T1, T2> dictionary)
+            {
+                isNull = dictionary == null;
+                if (isNull)
+                {
+                    this.dictionary = null;
+                    enumerator = default(Dictionary<T1, T2>.Enumerator);
+                }
+                else
+                {
+                    this.dictionary = dictionary;
+                    enumerator = this.dictionary.GetEnumerator();
+                }
+            }
+
+            /// <summary>
+            /// Gets the enumerator.
+            /// </summary>
+            public DictionaryValueIterator<T1, T2> GetEnumerator()
+            {
+                return this;
+            }
+
+            /// <summary>
+            /// Moves to the next value.
+            /// </summary>
+            public bool MoveNext()
+            {
+                if (isNull)
+                {
+                    return false;
+                }
+
+                return enumerator.MoveNext();
+            }
+
+            /// <summary>
+            /// Disposes the iterator.
+            /// </summary>
+            public void Dispose()
+            {
+                enumerator.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Garbage free enumerator for lists.
+        /// </summary>
+        public static ListIterator<T> GFIterator<T>(this List<T> list)
+        {
+            return new ListIterator<T>(list);
+        }
+
+        /// <summary>
+        /// Garbage free enumerator for dictionaries.
+        /// </summary>
+        public static DictionaryIterator<T1, T2> GFIterator<T1, T2>(this Dictionary<T1, T2> dictionary)
+        {
+            return new DictionaryIterator<T1, T2>(dictionary);
+        }
+
+        /// <summary>
+        /// Garbage free enumator for dictionary values.
+        /// </summary>
+        public static DictionaryValueIterator<T1, T2> GFValueIterator<T1, T2>(this Dictionary<T1, T2> dictionary)
+        {
+            return new DictionaryValueIterator<T1, T2>(dictionary);
+        }
+
+        /// <summary>
+        /// Garbage free enumerator for hashsets.
+        /// </summary>
+        public static HashsetIterator<T> GFIterator<T>(this HashSet<T> hashset)
+        {
+            return new HashsetIterator<T>(hashset);
+        }
+    }
+
+    [Serializable]
+    public class DoubleLookupDictionary<TFirstKey, TSecondKey, TValue> : Dictionary<TFirstKey, Dictionary<TSecondKey, TValue>>
+    {
+        private readonly IEqualityComparer<TSecondKey> secondKeyComparer;
+
+        public new Dictionary<TSecondKey, TValue> this[TFirstKey firstKey]
+        {
+            get
+            {
+                if (!TryGetValue(firstKey, out var value))
+                {
+                    value = new Dictionary<TSecondKey, TValue>(secondKeyComparer);
+                    Add(firstKey, value);
+                }
+
+                return value;
+            }
+        }
+
+        public DoubleLookupDictionary()
+        {
+            secondKeyComparer = EqualityComparer<TSecondKey>.Default;
+        }
+
+        public DoubleLookupDictionary(IEqualityComparer<TFirstKey> firstKeyComparer, IEqualityComparer<TSecondKey> secondKeyComparer)
+            : base(firstKeyComparer)
+        {
+            this.secondKeyComparer = secondKeyComparer;
+        }
+
+        public int InnerCount(TFirstKey firstKey)
+        {
+            if (TryGetValue(firstKey, out var value))
+            {
+                return value.Count;
+            }
+
+            return 0;
+        }
+
+        public int TotalInnerCount()
+        {
+            int num = 0;
+            if (base.Count > 0)
+            {
+                foreach (Dictionary<TSecondKey, TValue> value in base.Values)
+                {
+                    num += value.Count;
+                }
+            }
+
+            return num;
+        }
+
+        public bool ContainsKeys(TFirstKey firstKey, TSecondKey secondKey)
+        {
+            if (TryGetValue(firstKey, out var value))
+            {
+                return value.ContainsKey(secondKey);
+            }
+
+            return false;
+        }
+
+        public bool TryGetInnerValue(TFirstKey firstKey, TSecondKey secondKey, out TValue value)
+        {
+            if (TryGetValue(firstKey, out var value2) && value2.TryGetValue(secondKey, out value))
+            {
+                return true;
+            }
+
+            value = default(TValue);
+            return false;
+        }
+
+        public TValue AddInner(TFirstKey firstKey, TSecondKey secondKey, TValue value)
+        {
+            if (ContainsKeys(firstKey, secondKey))
+            {
+                throw new ArgumentException("An element with the same keys already exists in the " + GetType().GetNiceName() + ".");
+            }
+
+            return this[firstKey][secondKey] = value;
+        }
+
+        public bool RemoveInner(TFirstKey firstKey, TSecondKey secondKey)
+        {
+            if (TryGetValue(firstKey, out var value))
+            {
+                bool result = value.Remove(secondKey);
+                if (value.Count == 0)
+                {
+                    Remove(firstKey);
+                }
+
+                return result;
+            }
+
+            return false;
+        }
+
+        public void RemoveWhere(Func<TValue, bool> predicate)
+        {
+            List<TFirstKey> list = new List<TFirstKey>();
+            List<TSecondKey> list2 = new List<TSecondKey>();
+            foreach (KeyValuePair<TFirstKey, Dictionary<TSecondKey, TValue>> item in this.GFIterator())
+            {
+                foreach (KeyValuePair<TSecondKey, TValue> item2 in item.Value.GFIterator())
+                {
+                    if (predicate(item2.Value))
+                    {
+                        list.Add(item.Key);
+                        list2.Add(item2.Key);
+                    }
+                }
+            }
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                RemoveInner(list[i], list2[i]);
+            }
+        }
+    }
 }
 
 namespace Diagram.Message
@@ -5952,6 +8688,935 @@ namespace Diagram.Message
         public AddCache(string message)
         {
             CacheAssets.Messages += (CacheAssets.Messages.Length == 0 ? "" : ";") + message;
+        }
+    }
+}
+
+namespace Diagram.DeepReflection
+{
+    /// <summary>
+    /// Provides a methods of representing imaginary fields which are unique to serialization.<para></para>
+    /// We aggregate the FieldInfo associated with this member and return a mangled form of the name.
+    /// </summary>
+    public sealed class MemberAliasFieldInfo : FieldInfo
+    {
+        //The default fake name separator string.
+        private const string FAKE_NAME_SEPARATOR_STRING = "+";
+
+        private FieldInfo aliasedField;
+
+        private string mangledName;
+        
+        /// <summary>
+        /// Gets the aliased field.<para></para>
+        /// The aliased field.
+        /// </summary>
+        public FieldInfo AliasedField => aliasedField;
+
+        /// <summary>
+        /// Gets the module in which the type that declares the member represented by the current System.Reflection.MemberInfo is defined.
+        /// </summary>
+        public override Module Module => aliasedField.Module;
+
+        /// <summary>
+        /// Gets a value that identifies a metadata element.
+        /// </summary>
+        public override int MetadataToken => aliasedField.MetadataToken;
+
+        /// <summary>
+        /// Gets the name of the current member.
+        /// </summary>
+        public override string Name => mangledName;
+
+        /// <summary>
+        /// Gets the class that declares this member.
+        /// </summary>
+        public override Type DeclaringType => aliasedField.DeclaringType;
+
+        /// <summary>
+        /// Gets the class object that was used to obtain this instance of MemberInfo.
+        /// </summary>
+        public override Type ReflectedType => aliasedField.ReflectedType;
+
+        /// <summary>
+        /// Gets the type of the field.<para></para>
+        /// The type of the field.
+        /// </summary>
+        public override Type FieldType => aliasedField.FieldType;
+
+        /// <summary>
+        /// Gets a RuntimeFieldHandle, which is a handle to the internal metadata representation of a field.
+        /// </summary>
+        public override RuntimeFieldHandle FieldHandle => aliasedField.FieldHandle;
+
+        /// <summary>
+        /// Gets the attributes.<para></para>
+        /// The attributes.
+        /// </summary>
+        public override FieldAttributes Attributes => aliasedField.Attributes;
+
+        /// <summary>
+        /// Initializes a new instance of the Sirenix.Utilities.MemberAliasFieldInfo class.
+        /// </summary>
+        /// <param name="field">The field to alias.</param>
+        /// <param name="namePrefix">The name prefix to use.</param>
+        public MemberAliasFieldInfo(FieldInfo field, string namePrefix)
+        {
+            aliasedField = field;
+            mangledName = namePrefix + "+" + aliasedField.Name;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the Sirenix.Utilities.MemberAliasFieldInfo class.
+        /// </summary>
+        /// <param name="field">The field to alias.</param>
+        /// <param name="namePrefix">The name prefix to use.</param>
+        /// <param name="separatorString">The separator string to use.</param>
+        public MemberAliasFieldInfo(FieldInfo field, string namePrefix, string separatorString)
+        {
+            aliasedField = field;
+            mangledName = namePrefix + separatorString + aliasedField.Name;
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, returns an array of all custom attributes applied to this member.
+        /// </summary>
+        /// <param name="inherit">
+        /// True to search this member's inheritance chain to find the attributes; <para></para>otherwise,
+        /// false. This parameter is ignored for properties and events; see Remarks.
+        /// </param>
+        /// <returns>
+        /// An array that contains all the custom attributes applied to this member,<para></para>
+        /// or an array with zero elements if no attributes are defined.
+        /// </returns>
+        public override object[] GetCustomAttributes(bool inherit)
+        {
+            return aliasedField.GetCustomAttributes(inherit);
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, returns an array of custom attributes applied
+        /// to this member and identified by System.Type.
+        /// </summary>
+        /// <param name="attributeType">
+        /// The type of attribute to search for. Only attributes that are assignable to this
+        /// type are returned.
+        /// </param>
+        /// <param name="inherit">
+        /// True to search this member's inheritance chain to find the attributes; otherwise,
+        /// false. This parameter is ignored for properties and events; see Remarks.
+        /// </param>
+        /// <returns>
+        /// An array of custom attributes applied to this member, or an array with zero elements
+        /// if no attributes assignable to attributeType have been applied.
+        /// </returns>
+        public override object[] GetCustomAttributes(Type attributeType, bool inherit)
+        {
+            return aliasedField.GetCustomAttributes(attributeType, inherit);
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, indicates whether one or more attributes
+        /// of the specified type or of its derived types is applied to this member.
+        /// </summary>
+        /// <param name="attributeType">The type of custom attribute to search for. The search includes derived types.</param>
+        /// <param name="inherit">
+        /// True to search this member's inheritance chain to find the attributes; otherwise,
+        /// false. This parameter is ignored for properties and events; see Remarks.
+        /// </param>
+        /// <returns>
+        /// True if one or more instances of attributeType or any of its derived types is
+        /// applied to this member; otherwise, false.
+        /// </returns>
+        public override bool IsDefined(Type attributeType, bool inherit)
+        {
+            return aliasedField.IsDefined(attributeType, inherit);
+        }
+
+        /// <summary>
+        /// Gets the value of the field.
+        /// </summary>
+        /// <param name="obj">The object instance to get the value from.</param>
+        /// <returns>The value of the field.</returns>
+        public override object GetValue(object obj)
+        {
+            return aliasedField.GetValue(obj);
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, sets the value of the field supported by the given object.
+        /// </summary>
+        /// <param name="obj">The object whose field value will be set.</param>
+        /// <param name="value">The value to assign to the field.</param>
+        /// <param name="invokeAttr">
+        /// A field of Binder that specifies the type of binding that is desired (for example,
+        /// Binder.CreateInstance or Binder.ExactBinding).
+        /// </param>
+        /// <param name="binder">
+        /// A set of properties that enables the binding, coercion of argument types, and
+        /// invocation of members through reflection. If binder is null, then Binder.DefaultBinding
+        /// is used.
+        /// </param>
+        /// <param name="culture">
+        /// The software preferences of a particular culture.
+        /// </param>
+        public override void SetValue(object obj, object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
+        {
+            aliasedField.SetValue(obj, value, invokeAttr, binder, culture);
+        }
+    }
+
+    /// <summary>
+    /// Provides a methods of representing imaginary properties which are unique to serialization.<para></para>
+    /// We aggregate the PropertyInfo associated with this member and return a mangled form of the name.
+    /// </summary>
+    public sealed class MemberAliasPropertyInfo : PropertyInfo
+    {
+        /// <summary>
+        /// The default fake name separator string.
+        /// </summary>
+        private const string FakeNameSeparatorString = "+";
+
+        private PropertyInfo aliasedProperty;
+
+        private string mangledName;
+
+        /// <summary>
+        ///  
+        /// </summary>
+        public PropertyInfo AliasedProperty => aliasedProperty;
+
+        /// <summary>
+        /// Gets the module in which the type that declares the member represented by the current System.Reflection.MemberInfo is defined.
+        /// </summary>
+        public override Module Module => aliasedProperty.Module;
+
+        /// <summary>
+        /// Gets a value that identifies a metadata element.
+        /// </summary>
+        public override int MetadataToken => aliasedProperty.MetadataToken;
+
+        /// <summary>
+        /// Gets the name of the current member.
+        /// </summary>
+        public override string Name => mangledName;
+
+        /// <summary>
+        /// Gets the class that declares this member.
+        /// </summary>
+        public override Type DeclaringType => aliasedProperty.DeclaringType;
+
+        /// <summary>
+        /// Gets the class object that was used to obtain this instance of MemberInfo.
+        /// </summary>
+        public override Type ReflectedType => aliasedProperty.ReflectedType;
+
+        /// <summary>
+        /// Gets the type of the property.<para></para>
+        /// The type of the property.
+        /// </summary>
+        public override Type PropertyType => aliasedProperty.PropertyType;
+
+        /// <summary>
+        /// Gets the attributes.<para></para>
+        /// The attributes.
+        /// </summary>
+        public override PropertyAttributes Attributes => aliasedProperty.Attributes;
+
+        /// <summary>
+        /// Gets a value indicating whether this instance can read.
+        /// true if this instance can read; otherwise, false.
+        /// </summary>
+        public override bool CanRead => aliasedProperty.CanRead;
+
+        /// <summary>
+        /// Gets a value indicating whether this instance can write.<para></para>
+        /// true if this instance can write; otherwise, false.
+        /// </summary>
+        public override bool CanWrite => aliasedProperty.CanWrite;
+
+        /// <summary>
+        /// Initializes a new instance of the Sirenix.Utilities.MemberAliasPropertyInfo class.
+        /// </summary>
+        /// <param name="prop">The property to alias.</param>
+        /// <param name="namePrefix">The name prefix to use.</param>
+        public MemberAliasPropertyInfo(PropertyInfo prop, string namePrefix)
+        {
+            aliasedProperty = prop;
+            mangledName = namePrefix + "+" + aliasedProperty.Name;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the Sirenix.Utilities.MemberAliasPropertyInfo class.
+        /// </summary>
+        /// <param name="prop">The property to alias.</param>
+        /// <param name="namePrefix">The name prefix to use.</param>
+        /// <param name="separatorString">The separator string to use.</param>
+        public MemberAliasPropertyInfo(PropertyInfo prop, string namePrefix, string separatorString)
+        {
+            aliasedProperty = prop;
+            mangledName = namePrefix + separatorString + aliasedProperty.Name;
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, returns an array of all custom attributes applied to this member.
+        /// </summary>
+        /// <param name="inherit">
+        /// True to search this member's inheritance chain to find the attributes; otherwise,
+        /// false. This parameter is ignored for properties and events; see Remarks.
+        /// </param>
+        /// <returns>
+        /// An array that contains all the custom attributes applied to this member, or an
+        /// array with zero elements if no attributes are defined.
+        /// </returns>
+        public override object[] GetCustomAttributes(bool inherit)
+        {
+            return aliasedProperty.GetCustomAttributes(inherit);
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, returns an array of custom attributes applied to this member and identified by System.Type.
+        /// </summary>
+        /// <param name="attributeType">
+        /// The type of attribute to search for. Only attributes that are assignable to this
+        /// type are returned.
+        /// </param>
+        /// <param name="inherit">
+        /// True to search this member's inheritance chain to find the attributes; otherwise,
+        /// false. This parameter is ignored for properties and events; see Remarks.
+        /// </param>
+        /// <returns>
+        /// An array of custom attributes applied to this member, or an array with zero elements
+        /// if no attributes assignable to attributeType have been applied.
+        /// </returns>
+        public override object[] GetCustomAttributes(Type attributeType, bool inherit)
+        {
+            return aliasedProperty.GetCustomAttributes(attributeType, inherit);
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, indicates whether one or more attributes of the specified type or of its derived types is applied to this member.
+        /// </summary>
+        /// <param name="attributeType">The type of custom attribute to search for. The search includes derived types.</param>
+        /// <param name="inherit">
+        /// True to search this member's inheritance chain to find the attributes; otherwise,
+        /// false. This parameter is ignored for properties and events; see Remarks.
+        /// </param>
+        /// <returns>
+        /// True if one or more instances of attributeType or any of its derived types is
+        /// applied to this member; otherwise, false.
+        /// </returns>
+        public override bool IsDefined(Type attributeType, bool inherit)
+        {
+            return aliasedProperty.IsDefined(attributeType, inherit);
+        }
+
+        /// <summary>
+        /// Returns an array whose elements reflect the public and, if specified, non-public get, set, and other accessors of the property reflected by the current instance.
+        /// </summary>
+        /// <param name="nonPublic">
+        /// Indicates whether non-public methods should be returned in the MethodInfo array.
+        /// true if non-public methods are to be included; otherwise, false.
+        /// </param>
+        /// <returns>
+        /// An array of System.Reflection.MethodInfo objects whose elements reflect the get,
+        /// set, and other accessors of the property reflected by the current instance. If
+        /// nonPublic is true, this array contains public and non-public get, set, and other
+        /// accessors. If nonPublic is false, this array contains only public get, set, and
+        /// other accessors. If no accessors with the specified visibility are found, this
+        /// method returns an array with zero (0) elements.
+        /// </returns>
+        public override MethodInfo[] GetAccessors(bool nonPublic)
+        {
+            return aliasedProperty.GetAccessors(nonPublic);
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, returns the public or non-public get accessor for this property.
+        /// </summary>
+        /// <param name="nonPublic">
+        /// Indicates whether a non-public get accessor should be returned. true if a non-public
+        /// accessor is to be returned; otherwise, false.
+        /// </param>
+        /// <returns>
+        /// A MethodInfo object representing the get accessor for this property, if nonPublic
+        /// is true. Returns null if nonPublic is false and the get accessor is non-public,
+        /// or if nonPublic is true but no get accessors exist.
+        /// </returns>
+        public override MethodInfo GetGetMethod(bool nonPublic)
+        {
+            return aliasedProperty.GetGetMethod(nonPublic);
+        }
+
+        /// <summary>
+        /// Gets the index parameters of the property.
+        /// </summary>
+        /// <returns>The index parameters of the property.</returns>
+        public override ParameterInfo[] GetIndexParameters()
+        {
+            return aliasedProperty.GetIndexParameters();
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, returns the set accessor for this property.
+        /// </summary>
+        /// <param name="nonPublic">
+        /// Indicates whether the accessor should be returned if it is non-public. true if
+        /// a non-public accessor is to be returned; otherwise, false.
+        /// </param>
+        /// <returns>
+        /// Value Condition A System.Reflection.MethodInfo object representing the Set method
+        /// for this property. The set accessor is public.-or- nonPublic is true and the
+        /// set accessor is non-public. nullnonPublic is true, but the property is read-only.-or-
+        /// nonPublic is false and the set accessor is non-public.-or- There is no set accessor.
+        /// </returns>
+        public override MethodInfo GetSetMethod(bool nonPublic)
+        {
+            return aliasedProperty.GetSetMethod(nonPublic);
+        }
+
+        /// <summary>
+        /// Gets the value of the property on the given instance.
+        /// </summary>
+        /// <param name="obj">The object to invoke the getter on.</param>
+        /// <param name="invokeAttr">The System.Reflection.BindingFlags to invoke with.</param>
+        /// <param name="binder">The binder to use.</param>
+        /// <param name="index">The indices to use.</param>
+        /// <param name="culture">The culture to use.</param>
+        /// <returns>The value of the property on the given instance.</returns>
+        public override object GetValue(object obj, BindingFlags invokeAttr, Binder binder, object[] index, CultureInfo culture)
+        {
+            return aliasedProperty.GetValue(obj, invokeAttr, binder, index, culture);
+        }
+
+        /// <summary>
+        /// Sets the value of the property on the given instance.
+        /// </summary>
+        /// <param name="obj">The object to set the value on.</param>
+        /// <param name="value">The value to set.</param>
+        /// <param name="invokeAttr">The System.Reflection.BindingFlags to invoke with.</param>
+        /// <param name="binder">The binder to use.</param>
+        /// <param name="index">The indices to use.</param>
+        /// <param name="culture">The culture to use.</param>
+        public override void SetValue(object obj, object value, BindingFlags invokeAttr, Binder binder, object[] index, CultureInfo culture)
+        {
+            aliasedProperty.SetValue(obj, value, invokeAttr, binder, index, culture);
+        }
+    }
+
+    /// <summary>
+    /// Provides a methods of representing aliased methods.<para></para>
+    /// In this case, what we're representing is a method on a parent class with the
+    /// same name.<para></para>
+    /// We aggregate the MethodInfo associated with this member and return a mangled
+    /// form of the name. The name that we return is "parentname+methodName".
+    /// </summary>
+    public sealed class MemberAliasMethodInfo : MethodInfo
+    {
+        /// <summary>
+        /// The default fake name separator string.
+        /// </summary>
+        private const string FAKE_NAME_SEPARATOR_STRING = "+";
+
+        private MethodInfo aliasedMethod;
+
+        private string mangledName;
+
+        /// <summary>
+        /// Gets the aliased method.<para></para>
+        /// The aliased method.
+        /// </summary>
+        public MethodInfo AliasedMethod => aliasedMethod;
+
+        /// <summary>
+        /// Gets the custom attributes for the return type.
+        /// </summary>
+        public override ICustomAttributeProvider ReturnTypeCustomAttributes => aliasedMethod.ReturnTypeCustomAttributes;
+
+        /// <summary>
+        /// Gets a handle to the internal metadata representation of a method.
+        /// </summary>
+        public override RuntimeMethodHandle MethodHandle => aliasedMethod.MethodHandle;
+
+        /// <summary>
+        /// Gets the attributes associated with this method.
+        /// </summary>
+        public override MethodAttributes Attributes => aliasedMethod.Attributes;
+
+        public override Type ReturnType => aliasedMethod.ReturnType;
+
+        /// <summary>
+        /// Gets the class that declares this member.
+        /// </summary>
+        public override Type DeclaringType => aliasedMethod.DeclaringType;
+
+        /// <summary>
+        /// Gets the name of the current member.
+        /// </summary>
+        public override string Name => mangledName;
+
+        /// <summary>
+        /// Gets the class object that was used to obtain this instance of MemberInfo.
+        /// </summary>
+        public override Type ReflectedType => aliasedMethod.ReflectedType;
+
+        /// <summary>
+        /// Initializes a new instance of the Sirenix.Utilities.MemberAliasMethodInfo class.
+        /// </summary>
+        /// <param name="method">The method to alias.</param>
+        /// <param name="namePrefix">The name prefix to use.</param>
+        public MemberAliasMethodInfo(MethodInfo method, string namePrefix)
+        {
+            aliasedMethod = method;
+            mangledName = namePrefix + "+" + aliasedMethod.Name;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the Sirenix.Utilities.MemberAliasMethodInfo class.
+        /// </summary>
+        /// <param name="method">The method to alias.</param>
+        /// <param name="namePrefix">The name prefix to use.</param>
+        /// <param name="separatorString">The separator string to use.</param>
+        public MemberAliasMethodInfo(MethodInfo method, string namePrefix, string separatorString)
+        {
+            aliasedMethod = method;
+            mangledName = namePrefix + separatorString + aliasedMethod.Name;
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, returns the MethodInfo object for the method
+        /// on the direct or indirect base class in which the method represented by this
+        /// instance was first declared.
+        /// </summary>
+        /// <returns> A MethodInfo object for the first implementation of this method.</returns>
+        public override MethodInfo GetBaseDefinition()
+        {
+            return aliasedMethod.GetBaseDefinition();
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, returns an array of all custom attributes applied to this member.
+        /// </summary>
+        /// <param name="inherit">
+        /// true to search this member's inheritance chain to find the attributes; otherwise,
+        /// false. This parameter is ignored for properties and events; see Remarks.
+        /// </param>
+        /// <returns>
+        /// An array that contains all the custom attributes applied to this member, or an
+        /// array with zero elements if no attributes are defined.
+        /// </returns>
+        public override object[] GetCustomAttributes(bool inherit)
+        {
+            return aliasedMethod.GetCustomAttributes(inherit);
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, returns an array of custom attributes applied to this member and identified by System.Type.
+        /// </summary>
+        /// <param name="attributeType">
+        /// The type of attribute to search for. Only attributes that are assignable to this
+        /// type are returned.
+        /// </param>
+        /// <param name="inherit">
+        /// true to search this member's inheritance chain to find the attributes; otherwise,
+        /// false. This parameter is ignored for properties and events; see Remarks.
+        /// </param>
+        /// <returns>
+        /// An array of custom attributes applied to this member, or an array with zero elements
+        /// if no attributes assignable to attributeType have been applied.
+        /// </returns> 
+        public override object[] GetCustomAttributes(Type attributeType, bool inherit)
+        {
+            return aliasedMethod.GetCustomAttributes(attributeType, inherit);
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, returns the System.Reflection.MethodImplAttributes flags.
+        /// </summary>
+        /// <returns>The MethodImplAttributes flags.</returns>
+        public override MethodImplAttributes GetMethodImplementationFlags()
+        {
+            return aliasedMethod.GetMethodImplementationFlags();
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, gets the parameters of the specified method or constructor.
+        /// </summary>
+        /// <returns>
+        /// An array of type ParameterInfo containing information that matches the signature
+        /// of the method (or constructor) reflected by this MethodBase instance.
+        /// </returns>
+        public override ParameterInfo[] GetParameters()
+        {
+            return aliasedMethod.GetParameters();
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, invokes the reflected method or constructor with the given parameters.
+        /// </summary>
+        /// <param name="obj">
+        /// The object on which to invoke the method or constructor. If a method is static,
+        /// this argument is ignored. If a constructor is static, this argument must be null
+        /// or an instance of the class that defines the constructor.
+        /// </param>
+        /// <param name="invokeAttr">
+        /// A bitmask that is a combination of 0 or more bit flags from System.Reflection.BindingFlags.
+        /// If binder is null, this parameter is assigned the value System.Reflection.BindingFlags.Default;
+        /// thus, whatever you pass in is ignored.
+        /// </param>
+        /// <param name="binder">
+        /// An object that enables the binding, coercion of argument types, invocation of
+        /// members, and retrieval of MemberInfo objects via reflection. If binder is null,
+        /// the default binder is used.
+        /// </param>
+        /// <param name="parameters">
+        /// An argument list for the invoked method or constructor. This is an array of objects
+        /// with the same number, order, and type as the parameters of the method or constructor
+        /// to be invoked. If there are no parameters, this should be null.If the method
+        /// or constructor represented by this instance takes a ByRef parameter, there is
+        /// no special attribute required for that parameter in order to invoke the method
+        /// or constructor using this function. Any object in this array that is not explicitly
+        /// initialized with a value will contain the default value for that object type.
+        /// For reference-type elements, this value is null. For value-type elements, this
+        /// value is 0, 0.0, or false, depending on the specific element type.
+        /// </param>
+        /// <param name="culture">
+        /// An instance of CultureInfo used to govern the coercion of types. If this is null,
+        /// the CultureInfo for the current thread is used. (This is necessary to convert
+        /// a String that represents 1000 to a Double value, for example, since 1000 is represented
+        /// differently by different cultures.)
+        /// </param>
+        /// <returns>
+        /// An Object containing the return value of the invoked method, or null in the case
+        /// of a constructor, or null if the method's return type is void. Before calling
+        /// the method or constructor, Invoke checks to see if the user has access permission
+        /// and verifies that the parameters are valid.CautionElements of the parameters
+        /// array that represent parameters declared with the ref or out keyword may also
+        /// be modified.
+        /// </returns>
+        public override object Invoke(object obj, BindingFlags invokeAttr, Binder binder, object[] parameters, CultureInfo culture)
+        {
+            return aliasedMethod.Invoke(obj, invokeAttr, binder, parameters, culture);
+        }
+
+        /// <summary>
+        /// When overridden in a derived class, indicates whether one or more attributes of the specified type or of its derived types is applied to this member.
+        /// </summary>
+        /// <param name="attributeType">The type of custom attribute to search for. The search includes derived types.</param>
+        /// <param name="inherit">
+        /// true to search this member's inheritance chain to find the attributes; otherwise,
+        /// false. This parameter is ignored for properties and events; see Remarks.
+        /// </param>
+        /// <returns>
+        /// true if one or more instances of attributeType or any of its derived types is
+        /// applied to this member; otherwise, false.
+        /// </returns>
+        public override bool IsDefined(Type attributeType, bool inherit)
+        {
+            return aliasedMethod.IsDefined(attributeType, inherit);
+        }
+    }
+
+    /// <summary>
+    /// MemberInfo method extensions.
+    /// </summary>
+    public static class MemberInfoExtensions
+    {
+        /// <summary>
+        /// Returns true if the attribute whose type is specified by the generic argument
+        /// is defined on this member
+        /// </summary>
+        public static bool IsDefined<T>(this ICustomAttributeProvider member, bool inherit) where T : Attribute
+        {
+            try
+            {
+                return member.IsDefined(typeof(T), inherit);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the attribute whose type is specified by the generic argument is defined on this member
+        /// </summary>
+        public static bool IsDefined<T>(this ICustomAttributeProvider member) where T : Attribute
+        {
+            return member.IsDefined<T>(inherit: false);
+        }
+
+        /// <summary>
+        /// Returns the first found custom attribute of type T on this member Returns null if none was found
+        /// </summary>
+        public static T GetAttribute<T>(this ICustomAttributeProvider member, bool inherit) where T : Attribute
+        {
+            T[] array = member.GetAttributes<T>(inherit).ToArray();
+            if (array != null && array.Length != 0)
+            {
+                return array[0];
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the first found non-inherited custom attribute of type T on this member <para></para>
+        /// Returns null if none was found
+        /// </summary>
+        public static T GetAttribute<T>(this ICustomAttributeProvider member) where T : Attribute
+        {
+            return member.GetAttribute<T>(inherit: false);
+        }
+
+        /// <summary>
+        /// Gets all attributes of the specified generic type.
+        /// </summary>
+        public static IEnumerable<T> GetAttributes<T>(this ICustomAttributeProvider member) where T : Attribute
+        {
+            return member.GetAttributes<T>(inherit: false);
+        }
+
+        /// <summary>
+        /// Gets all attributes of the specified generic type.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="inherit">If true, specifies to also search the ancestors of element for custom attributes.</param>
+        public static IEnumerable<T> GetAttributes<T>(this ICustomAttributeProvider member, bool inherit) where T : Attribute
+        {
+            try
+            {
+                return member.GetCustomAttributes(typeof(T), inherit).Cast<T>();
+            }
+            catch
+            {
+                return new T[0];
+            }
+        }
+
+        /// <summary>
+        /// Gets all attribute instances defined on a MemeberInfo.
+        /// </summary>
+        public static Attribute[] GetAttributes(this ICustomAttributeProvider member)
+        {
+            try
+            {
+                return member.GetAttributes<Attribute>().ToArray();
+            }
+            catch
+            {
+                return new Attribute[0];
+            }
+        }
+
+        /// <summary>
+        ///     Gets all attribute instances on a MemberInfo.
+        /// </summary>
+        /// <param name="inherit">If true, specifies to also search the ancestors of element for custom attributes.</param>
+        public static Attribute[] GetAttributes(this ICustomAttributeProvider member, bool inherit)
+        {
+            try
+            {
+                return member.GetAttributes<Attribute>(inherit).ToArray();
+            }
+            catch
+            {
+                return new Attribute[0];
+            }
+        }
+
+        /// <summary>
+        /// If this member is a method, returns the full method name (name + params) otherwise the member name paskal splitted
+        /// </summary>
+        public static string GetNiceName(this MemberInfo member)
+        {
+            MethodBase methodBase = member as MethodBase;
+            string input = ((!(methodBase != null)) ? member.Name : methodBase.GetFullName());
+            return input.ToTitleCase();
+        }
+
+        /// <summary>
+        /// Determines whether a FieldInfo, PropertyInfo or MethodInfo is static.
+        /// </summary>
+        /// <param name="member"></param>
+        /// <returns>true if the specified member is static; otherwise, false.</returns>
+        /// <exception cref="NotSupportedException">System.NotSupportedException:</exception>
+        public static bool IsStatic(this MemberInfo member)
+        {
+            FieldInfo fieldInfo = member as FieldInfo;
+            if (fieldInfo != null)
+            {
+                return fieldInfo.IsStatic;
+            }
+
+            PropertyInfo propertyInfo = member as PropertyInfo;
+            if (propertyInfo != null)
+            {
+                if (!propertyInfo.CanRead)
+                {
+                    return propertyInfo.GetSetMethod(nonPublic: true).IsStatic;
+                }
+
+                return propertyInfo.GetGetMethod(nonPublic: true).IsStatic;
+            }
+
+            MethodBase methodBase = member as MethodBase;
+            if (methodBase != null)
+            {
+                return methodBase.IsStatic;
+            }
+
+            EventInfo eventInfo = member as EventInfo;
+            if (eventInfo != null)
+            {
+                return eventInfo.GetRaiseMethod(nonPublic: true).IsStatic;
+            }
+
+            Type type = member as Type;
+            if (type != null)
+            {
+                if (type.IsSealed)
+                {
+                    return type.IsAbstract;
+                }
+
+                return false;
+            }
+
+            string message = string.Format(CultureInfo.InvariantCulture, "Unable to determine IsStatic for member {0}.{1}MemberType was {2} but only fields, properties, methods, events and types are supported.", member.DeclaringType.FullName, member.Name, member.GetType().FullName);
+            throw new NotSupportedException(message);
+        }
+
+        /// <summary>
+        /// Determines whether the specified member is an alias.
+        /// </summary>
+        /// <param name="memberInfo"></param>
+        /// <returns>true if the specified member is an alias; otherwise, false.</returns>
+        public static bool IsAlias(this MemberInfo memberInfo)
+        {
+            if (!(memberInfo is MemberAliasFieldInfo) && !(memberInfo is MemberAliasPropertyInfo))
+            {
+                return memberInfo is MemberAliasMethodInfo;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Returns the original, backing member of an alias member if the member is an alias.
+        /// </summary>
+        /// <param name="memberInfo"></param>
+        /// <param name="throwOnNotAliased">if set to true an exception will be thrown if the member is not aliased.</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException">The member was not aliased; this only occurs if throwOnNotAliased is true.</exception>
+        public static MemberInfo DeAlias(this MemberInfo memberInfo, bool throwOnNotAliased = false)
+        {
+            MemberAliasFieldInfo memberAliasFieldInfo = memberInfo as MemberAliasFieldInfo;
+            if (memberAliasFieldInfo != null)
+            {
+                return memberAliasFieldInfo.AliasedField;
+            }
+
+            MemberAliasPropertyInfo memberAliasPropertyInfo = memberInfo as MemberAliasPropertyInfo;
+            if (memberAliasPropertyInfo != null)
+            {
+                return memberAliasPropertyInfo.AliasedProperty;
+            }
+
+            MemberAliasMethodInfo memberAliasMethodInfo = memberInfo as MemberAliasMethodInfo;
+            if (memberAliasMethodInfo != null)
+            {
+                return memberAliasMethodInfo.AliasedMethod;
+            }
+
+            if (throwOnNotAliased)
+            {
+                throw new ArgumentException("The member " + memberInfo.GetNiceName() + " was not aliased.");
+            }
+
+            return memberInfo;
+        }
+
+        public static bool SignaturesAreEqual(this MemberInfo a, MemberInfo b)
+        {
+            if (a.MemberType != b.MemberType)
+            {
+                return false;
+            }
+
+            if (a.Name != b.Name)
+            {
+                return false;
+            }
+
+            if (a.GetReturnType() != b.GetReturnType())
+            {
+                return false;
+            }
+
+            if (a.IsStatic() != b.IsStatic())
+            {
+                return false;
+            }
+
+            MethodInfo methodInfo = a as MethodInfo;
+            MethodInfo methodInfo2 = b as MethodInfo;
+            if (methodInfo != null)
+            {
+                if (methodInfo.IsPublic != methodInfo2.IsPublic)
+                {
+                    return false;
+                }
+
+                if (methodInfo.IsPrivate != methodInfo2.IsPrivate)
+                {
+                    return false;
+                }
+
+                if (methodInfo.IsPublic != methodInfo2.IsPublic)
+                {
+                    return false;
+                }
+
+                ParameterInfo[] parameters = methodInfo.GetParameters();
+                ParameterInfo[] parameters2 = methodInfo2.GetParameters();
+                if (parameters.Length != parameters2.Length)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    if (parameters[i].ParameterType != parameters2[i].ParameterType)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            PropertyInfo propertyInfo = a as PropertyInfo;
+            PropertyInfo propertyInfo2 = b as PropertyInfo;
+            if (propertyInfo != null)
+            {
+                MethodInfo[] accessors = propertyInfo.GetAccessors(nonPublic: true);
+                MethodInfo[] accessors2 = propertyInfo2.GetAccessors(nonPublic: true);
+                if (accessors.Length != accessors2.Length)
+                {
+                    return false;
+                }
+
+                if (accessors[0].IsPublic != accessors2[0].IsPublic)
+                {
+                    return false;
+                }
+
+                if (accessors.Length > 1 && accessors[1].IsPublic != accessors2[1].IsPublic)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
