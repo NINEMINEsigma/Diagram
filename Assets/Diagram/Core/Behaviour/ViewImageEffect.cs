@@ -10,8 +10,8 @@ using UnityEngine.UI;
 namespace Diagram
 {
     [Serializable]
-    [AddComponentMenu("Diagram/View", 100)]
-    public sealed class View : BaseMeshEffect
+    [AddComponentMenu("Diagram/ViewImageEffect", 100)]
+    public sealed class ViewImageEffect : BaseMeshEffect
     {
         #region Attribute 
 
@@ -172,60 +172,60 @@ namespace Diagram
 
         #region Image - View
 
-        public static View Generate(string name = "New Image", Transform parent = null, params System.Type[] components)
+        public static ViewImageEffect Generate(string name = "New Image", Transform parent = null, params System.Type[] components)
         {
-            View source = new GameObject(name, components).AddComponent<View>();
+            ViewImageEffect source = new GameObject(name, components).AddComponent<ViewImageEffect>();
             source.transform.SetParent(parent, false);
 
             return source;
         }
 
-        public View SetTransparentChannelCollisionThreshold(float value)
+        public ViewImageEffect SetTransparentChannelCollisionThreshold(float value)
         {
             ViewImage.alphaHitTestMinimumThreshold = value;
             return this;
         }
 
-        public View SetMaterial(Material material)
+        public ViewImageEffect SetMaterial(Material material)
         {
             ViewImage.material = material;
             return this;
         }
 
-        public View Refresh()
+        public ViewImageEffect Refresh()
         {
             ViewImage.sprite = CurrentImage;
             return this;
         }
 
-        public View SetAlpha(float alpha)
+        public ViewImageEffect SetAlpha(float alpha)
         {
             ViewImage.color = new Color(ViewImage.color.r, ViewImage.color.g, ViewImage.color.b, alpha);
             return this;
         }
-        public View SetRed(float red)
+        public ViewImageEffect SetRed(float red)
         {
             ViewImage.color = new Color(red, ViewImage.color.g, ViewImage.color.b, ViewImage.color.a);
             return this;
         }
-        public View SetGreen(float green)
+        public ViewImageEffect SetGreen(float green)
         {
             ViewImage.color = new Color(ViewImage.color.r, green, ViewImage.color.b, ViewImage.color.a);
             return this;
         }
-        public View SetBlue(float blue)
+        public ViewImageEffect SetBlue(float blue)
         {
             ViewImage.color = new Color(ViewImage.color.r, ViewImage.color.g, blue, ViewImage.color.a);
             return this;
         }
 
-        public View BakeAudioWaveformFormAudioCilp(AudioClip clip)
+        public ViewImageEffect BakeAudioWaveformFormAudioCilp(AudioClip clip)
         {
             ViewImage.color = new Color();
             ViewImage.sprite = Sprite.Create(AudioSystem.BakeAudioWaveform(clip).Share(out var tex), new Rect(0, 0, tex.width, tex.height), Vector2.zero);
             return this;
         }
-        public View BakeAudioWaveformVerticalFormAudioCilp(AudioClip clip)
+        public ViewImageEffect BakeAudioWaveformVerticalFormAudioCilp(AudioClip clip)
         {
             ViewImage.color = new Color();
             ViewImage.sprite = Sprite.Create(AudioSystem.BakeAudioWaveformVertical(clip).Share(out var tex), new Rect(0, 0, tex.width, tex.height), Vector2.zero);

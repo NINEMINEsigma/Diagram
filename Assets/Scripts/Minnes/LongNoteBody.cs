@@ -22,7 +22,7 @@ namespace Game
 
     public class LongNoteBody : MinnesController
     {
-        [SerializeField] protected MeshExtension.VertexEntry[] MeshSourcePairs;
+        [SerializeField] protected AD.Utility.MeshExtension.VertexEntry[] MeshSourcePairs;
         public List<Note> Pointers = new();
         public AnimationCurve BodySizeCurve = AnimationCurve.Linear(0, 1, 1, 1);
 

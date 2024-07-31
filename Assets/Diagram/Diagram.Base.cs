@@ -36,7 +36,7 @@ namespace Diagram
     /// It should not be a null value
     /// </summary>
     [System.AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
-    public sealed class _In_Attribute : Attribute
+    public class _In_Attribute : Attribute
     {
 
     }
@@ -44,14 +44,14 @@ namespace Diagram
     /// An instance used to save the output
     /// </summary>
     [System.AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
-    public sealed class _Out_Attribute : Attribute
+    public class _Out_Attribute : Attribute
     {
 
     }
     /// <summary>
     /// Parameters that would be overlooked
     /// </summary>
-    [System.AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+    [System.AttributeUsage(AttributeTargets.All, Inherited = false, AllowMultiple = false)]
     public sealed class _Ignore_Attribute : Attribute
     {
 
@@ -59,8 +59,8 @@ namespace Diagram
     /// <summary>
     /// The parameters that must be present, which are very important
     /// </summary>
-    [System.AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
-    public sealed class _Must_Attribute : Attribute
+    [System.AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
+    public class _Must_Attribute : _In_Attribute
     {
 
     }
@@ -110,6 +110,71 @@ namespace Diagram
     {
         public _Init_Attribute() { }
     }
+    /// <summary>
+    /// The matching method is very important with this method
+    /// </summary>
+    [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
+    public sealed class MatchAttribute : Attribute
+    {
+        public MethodInfo target;
+        public MatchAttribute(MethodInfo matchingTarget)
+        {
+            this.target = matchingTarget;
+        }
+    }
+
+    public class SALVerySafeMethod
+    {
+        private MethodInfo method = null;
+        private bool Stats = true;
+        public Exception CurrentException = null;
+        public SALVerySafeMethod(MethodInfo method)
+        {
+            this.method = method;
+            this.Stats = method.HasAttribute(typeof(_NotSupport_Attribute), true) == false;
+        }
+        public static implicit operator bool(SALVerySafeMethod met) => met.Stats;
+
+        public bool CheckParametersBefore(params object[] parameter)
+        {
+            if (method.GetParameters().Length == parameter.Length)
+            {
+                var mPar = method.GetParameters();
+                for (int i = 0, e = parameter.Length; i < e; i++)
+                {
+                    if (mPar[i].HasAttribute(typeof(_In_Attribute)))
+                    {
+                        if (parameter[i] == null) return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        public bool CheckParametersAfter(params object[] parameter)
+        {
+            return true;
+        }
+
+        public (object,object[]) Invoke(object taregt,params object[] parameter)
+        {
+            CurrentException = null;
+            if (Stats = CheckParametersBefore(parameter) == false) return (null, parameter);
+            this.Stats &= method.HasAttribute(typeof(_NotSupport_Attribute), true) == false;
+            try
+            {
+                var result = (method.Invoke(taregt, parameter), parameter);
+                if (Stats &= CheckParametersAfter(parameter) == false) return result;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                CurrentException = ex;
+                return (null, parameter);
+            }
+        }
+    }
 
 #pragma warning restore IDE1006 // 命名样式
 
@@ -140,7 +205,7 @@ namespace Diagram
         public bool IsUnsupported { get; protected set; } = false;
         public int Priority { get; protected set; } = 0;
 
-        protected DiagramType(Type type)
+        protected DiagramType([_Must_]Type type)
         {
             DiagramType.AddType(type, this);
             this.type = type;

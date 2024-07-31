@@ -96,7 +96,7 @@ namespace Game
         }
         public void LoadIcon(string icon)
         {
-            this.SeekComponent<View>().LoadOnUrl(icon);
+            this.SeekComponent<ViewImageEffect>().LoadOnUrl(icon);
         }
 
         private void Update()
