@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using Diagram.Arithmetic;
 using Diagram.Message;
+using Unity.VisualScripting.Antlr3.Runtime.Misc;
 using UnityEngine;
 
 namespace Diagram
 {
     [Serializable]
-    public class LineBehaviour : MonoBehaviour
+    public partial class LineBehaviour : MonoBehaviour
     {
         private RectTransform _rectTransform;
         public RectTransform MyRectTransform
@@ -134,7 +135,7 @@ namespace Diagram
         {
             get
             {
-                if (meshRenderer == null) 
+                if (meshRenderer == null)
                     meshRenderer = this.SeekComponent<MeshRenderer>();
                 return meshRenderer;
             }
@@ -216,6 +217,16 @@ namespace Diagram
             return gameObject.GetComponent(componentType);
         }
 
+        public void SetActive(bool stats)
+        {
+            this.gameObject.SetActive(stats);
+        }
+
+        public void LetActive(GameObject right,bool stats)
+        {
+            right.SetActive(stats);
+        }
+
         public void Log(string message)
         {
             Debug.Log(message);
@@ -263,4 +274,138 @@ namespace Diagram
         }
     }
 
+    [Serializable]
+    public class ModuleBehaviour : LineBehaviour
+    {
+        [SerializeField] private BehaviourModuleAssets[] contexts;
+        public BehaviourModuleAssets[] Contexts
+        {
+            get
+            {
+                contexts ??= new BehaviourModuleAssets[0];
+                return contexts;
+            }
+        }
+
+        private void Awake()
+        {
+            foreach (var module in Contexts)
+            {
+                module.targetObject = this;
+            }
+            foreach (var module in Contexts)
+            {
+                if (module.IsEnable)
+                    module.ModuleAwake();
+            }
+            this.LAwake();
+        }
+        protected virtual void LAwake() { }
+
+        private void Start()
+        {
+            foreach (var module in Contexts)
+            {
+                if (module.IsEnable)
+                    module.ModuleStart();
+            }
+            this.LStart();
+        }
+        protected virtual void LStart() { }
+
+        private void Update()
+        {
+            foreach (var module in Contexts)
+            {
+                if (module.IsEnable)
+                    module.ModuleUpdate();
+            }
+            this.LUpdate();
+        }
+        protected virtual void LUpdate() { }
+
+        private void LateUpdate()
+        {
+            foreach (var module in Contexts)
+            {
+                if (module.IsEnable)
+                    module.ModuleLateUpdate();
+            }
+            this.LLateUpdate();
+        }
+        protected virtual void LLateUpdate() { }
+
+        private void FixedUpdate()
+        {
+            foreach (var module in Contexts)
+            {
+                if (module.IsEnable)
+                    module.ModuleFixedUpdate();
+            }
+            this.LFixedUpdate();
+        }
+        protected virtual void LFixedUpdate() { }
+
+        private void OnEnable()
+        {
+            foreach (var module in Contexts)
+            {
+                if (module.IsEnable)
+                    module.ModuleOnEnable();
+            }
+            this.LonEnable();
+        }
+        protected virtual void LonEnable() { }
+
+        private void OnDisable()
+        {
+            foreach (var module in Contexts)
+            {
+                if (module.IsEnable)
+                    module.ModuleOnDisable();
+            }
+            this.LonDisable();
+        }
+        protected virtual void LonDisable() { }
+    }
+
+    public class BehaviourModuleAssets : ScriptableObject
+    {
+        [HideInInspector] public ModuleBehaviour targetObject;
+        public bool IsEnable;
+
+        public virtual void ModuleAwake()
+        {
+
+        }
+
+        public virtual void ModuleStart()
+        {
+
+        }
+
+        public virtual void ModuleUpdate()
+        {
+
+        }
+
+        public virtual void ModuleLateUpdate()
+        {
+
+        }
+
+        public virtual void ModuleFixedUpdate()
+        {
+
+        }
+
+        public virtual void ModuleOnEnable()
+        {
+        }
+
+        public virtual void ModuleOnDisable()
+        {
+
+        }
+    }
 }

@@ -6879,6 +6879,30 @@ namespace Diagram
         }
 
         #endregion
+
+        #region Function Diagram
+
+        public static T[] ExchangeToArray<T,P>(this P[] self) where T : class where P:class
+        {
+            T[] result = new T[self.Length];
+            for (int i = 0; i < self.Length; i++)
+            {
+                result[i] = self[i] as T;
+            }
+            return result;
+        }
+
+        public static T[] ExchangeToArray<T>(this object[] self) where T : class
+        {
+            T[] result = new T[self.Length];
+            for (int i = 0; i < self.Length; i++)
+            {
+                result[i] = self[i] as T;
+            }
+            return result;
+        }
+
+        #endregion
     }
 
     #endregion
@@ -8650,6 +8674,78 @@ namespace Diagram.Collections
             {
                 RemoveInner(list[i], list2[i]);
             }
+        }
+    }
+
+    /// <summary>
+    /// Core method to find element:
+    /// <list type="bullet"><see cref="SeekFirst(Type)"/></list> 
+    /// <list type="bullet"><see cref="SeekFirst{T}()(Type)"/></list>
+    /// <b>substituted <see cref="System.Linq.Enumerable.FirstOrDefault{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/></b>
+    /// <list type="bullet"><see cref="Seek(Type)(Type)"/></list>
+    /// <list type="bullet"><see cref="Seek{T}()(Type)"/></list>
+    /// <b>substituted <see cref="System.Linq.Enumerable.All{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/></b>
+    /// <para></para>
+    /// The following types of effects are not effective: <see cref="IInvariant{T}"/>
+    /// </summary>
+    [Serializable]
+    public class GeneralizableContainer: HashSet<object>
+    {
+        /// <summary>
+        /// Find the corresponding type, and if you can't find a match, find a match for its subclass
+        /// </summary>
+        public object SeekFirst(Type type)
+        {
+            foreach (var obj in this)
+            {
+                if (obj.GetType() == type)
+                    return obj;
+            }
+            foreach (var obj in this)
+            {
+                if (obj.GetType().IsAssignableFrom(type))
+                    return obj;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Find the corresponding type, and if you can't find a match, find a match for its subclass
+        /// </summary>
+        public object[] Seek(Type type)
+        {
+            List<object> result = new();
+            foreach (var obj in this)
+            {
+                if (obj.GetType() == type)
+                    result.Add(obj);
+            }
+            if (result.Count > 0)
+                return result.ToArray();
+            foreach (var obj in this)
+            {
+                if (obj.GetType().IsAssignableFrom(type))
+                {
+                    result.Add(obj);
+                }
+            }
+            return result.ToArray();
+        }
+
+        /// <summary>
+        /// Find the corresponding type, and if you can't find a match, find a match for its subclass
+        /// </summary>
+        public T SeekFirst<T>() where T : class
+        {
+            return SeekFirst(typeof(T)) as T;
+        }
+
+        /// <summary>
+        /// Find the corresponding type, and if you can't find a match, find a match for its subclass
+        /// </summary>
+        public T[] Seek<T>() where T : class
+        {
+            return Seek(typeof(T)).ExchangeToArray<T>();
         }
     }
 }

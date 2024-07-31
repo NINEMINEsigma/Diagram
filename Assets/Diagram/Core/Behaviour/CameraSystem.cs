@@ -40,10 +40,12 @@ namespace Diagram
         public void SetNear(float near) => GetCamera().nearClipPlane = near;
         public void SetFar(float far) => GetCamera().farClipPlane = far;
 
-        private void Reset()
+        public override void Reset()
         {
-            MySortingRect = new();
-            MySortingRect.MyCanvas=this.GetComponentInChildren<Canvas>();
+            MySortingRect = new()
+            {
+                MyCanvas = this.GetComponentInChildren<Canvas>()
+            };
             if (MySortingRect.MyCanvas == null) return;
             for (int i = 0, e = MySortingRect.MyCanvas.transform.childCount; i < e; i++)
             {
