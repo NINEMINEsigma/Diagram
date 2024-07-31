@@ -199,13 +199,13 @@ namespace Game
 
         virtual protected void OnEnable()
         {
-            TimeListener ??= new();
+            this.SetupLBTimeContainer(true);
             StartCoroutine(WaitForSomeTime(ReloadLineScript));
         }
 
         virtual protected void OnDisable()
         {
-            TimeListener = null;
+            this.SetupLBTimeContainer(false);
             Minnes.MinnesInstance.AllControllers.Remove(this);
         }
 

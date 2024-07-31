@@ -32,11 +32,44 @@ namespace Diagram
         }
 
         public Dictionary<string, Action<float, float>> TimeListener;
+        public Dictionary<string, bool> TimeInvokerPointer;
+        public void SetupLBTimeContainer(bool isEnable)
+        {
+            if (isEnable)
+            {
+                TimeListener ??= new();
+                TimeInvokerPointer ??= new();
+            }
+            else
+            {
+                TimeListener = null;
+                TimeInvokerPointer = null;
+            }
+        }
+
         public virtual void TimeUpdate(ref float time, ref float stats)
         {
             foreach (var invoker in TimeListener)
             {
                 invoker.Value(time, stats);
+            }
+        }
+
+        public void MakeTimeInvoker(float targetTime, string ls)
+        {
+            string symbol = ls + "-" + targetTime.ToString();
+            if (TimeListener.TryAdd(symbol, (float time, float stats) =>
+            {
+                if (time > targetTime && TimeInvokerPointer[symbol] == false)
+                {
+                    new LineScript(("this", this)).Run(ls);
+                    TimeInvokerPointer[symbol] = true;
+                }
+                else if (time < targetTime)
+                    TimeInvokerPointer[symbol] = false;
+            }))
+            {
+                TimeInvokerPointer[symbol] = false;
             }
         }
 
