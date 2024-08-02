@@ -21,16 +21,6 @@ namespace Diagram
     {
         [Header("Camera System Data")]
         public CameraSystemData MySortingRect;
-        private PlayerMovement playerMovement;
-        public PlayerMovement MyPlayerMovement
-        {
-            get
-            {
-                if (playerMovement == null)
-                    playerMovement = this.SeekComponent<PlayerMovement>();
-                return playerMovement;
-            }
-        }
 
         public Camera GetCamera() => this.SeekComponent<Camera>();
         public void SetPerspective() => GetCamera().orthographic = false;

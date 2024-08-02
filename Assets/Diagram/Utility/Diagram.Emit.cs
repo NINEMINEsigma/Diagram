@@ -11,7 +11,9 @@ namespace Diagram.Emit
     /// </summary>
     public static class EmitUtilities
     {
+#if UNITY_EDITOR
         private static Assembly EditorAssembly = typeof(UnityEditor.Editor).Assembly;
+#endif
         private static Assembly EngineAssembly = typeof(UnityEngine.Object).Assembly;
 
         /// <summary>
@@ -24,7 +26,9 @@ namespace Diagram.Emit
         {
             if (member.DeclaringType != null)
             {
+#if UNITY_EDITOR
                 if (!(member.DeclaringType.Assembly == EditorAssembly))
+#endif
                 {
                     return member.DeclaringType.Assembly == EngineAssembly;
                 }

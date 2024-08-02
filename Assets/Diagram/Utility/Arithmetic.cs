@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Data; 
+using System.Data;
+using UnityEditor;
 using UnityEngine;
 using static Diagram.Arithmetic.ArithmeticException;
 
@@ -342,7 +343,7 @@ namespace Diagram.Arithmetic
                 EaseCurveType.InBack => InBack(from, to, t),
                 EaseCurveType.OutBack => OutBack(from, to, t),
                 EaseCurveType.InOutBack => InOutBack(from, to, t),
-                _ => throw new AD.BASE.ADException("Not Support")
+                _ => throw new DiagramException("Not Support")
             };
         }
 
@@ -390,7 +391,7 @@ namespace Diagram.Arithmetic
                 EaseCurveType.InBack => InBack(from, to, t),
                 EaseCurveType.OutBack => OutBack(from, to, t),
                 EaseCurveType.InOutBack => InOutBack(from, to, t),
-                _ => throw new AD.BASE.ADException("Not Support")
+                _ => throw new DiagramException("Not Support")
             };
         }
 
@@ -986,5 +987,13 @@ namespace Diagram.Arithmetic
 
             return p;
         }
+    }
+
+    public static class MathX
+    {
+        //public static Vector3 PointNormal2PlaneFunction(Vector3 position,Vector3 normal,Vector2 direction)
+        //{
+        //    
+        //}
     }
 }

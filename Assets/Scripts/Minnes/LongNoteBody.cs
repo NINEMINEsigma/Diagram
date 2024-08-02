@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AD.Utility;
 using Diagram;
 using UnityEngine;
+using static AD.Utility.MeshExtension;
 
 namespace Game
 {
@@ -69,7 +70,7 @@ namespace Game
                         linkingCurve.AllPoints.Add(new(end.AddZ(-dirt.z), false));
                     }
                     linkingCurve.AllPoints.Add(new(this.Pointers[^1].transform.position, true));
-                    this.MeshSourcePairs = linkingCurve.GenerateCurveMeshData(MeshExtension.BuildNormalType.JustDirection, Vector3.right, this.BodySizeCurve);
+                    this.MeshSourcePairs = linkingCurve.GenerateCurveMeshData(BuildNormalType.JustDirection, Vector3.right, this.BodySizeCurve);
                     this.MyMeshFilter.RebuildMesh(this.MeshSourcePairs);
                 }
             });

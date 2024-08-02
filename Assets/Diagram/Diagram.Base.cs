@@ -26,6 +26,8 @@ using Debug = UnityEngine.Debug;
 using Quaternion = UnityEngine.Quaternion;
 using Vector3 = UnityEngine.Vector3;
 
+namespace UnityEditor { }
+
 namespace Diagram
 {
     //Diagram source code annotation language
@@ -105,7 +107,7 @@ namespace Diagram
     /// <summary>
     /// The method used for initialization
     /// </summary>
-    [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
+    [System.AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor, Inherited = false, AllowMultiple = true)]
     public sealed class _Init_Attribute : Attribute
     {
         public _Init_Attribute() { }
@@ -114,12 +116,34 @@ namespace Diagram
     /// The matching method is very important with this method
     /// </summary>
     [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
-    public sealed class MatchAttribute : Attribute
+    public sealed class _Match_Attribute : Attribute
     {
-        public MethodInfo target;
-        public MatchAttribute(MethodInfo matchingTarget)
+        private string targetMet;
+        private int matTotal;
+        public DiagramReflectedMethod GetMatchMethod(Type type)
         {
-            this.target = matchingTarget;
+            var methods = ReflectionExtension.GetMethods(type, targetMet);
+            if (matTotal < 0)
+                return new(methods[0], methods[0].GetParameters().Length);
+            else
+                return new(methods.First(T => T.GetParameters().Length == matTotal), matTotal);
+        }
+        public _Match_Attribute(string matchingTarget, int matchArgsTotal = -1)
+        {
+            this.targetMet = matchingTarget;
+            this.matTotal = matchArgsTotal;
+        }
+    }
+    /// <summary>
+    /// Whether this method allows itself to be called
+    /// </summary>
+    [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
+    public sealed class _Recursional_Attribute : Attribute
+    {
+        private bool Enable;
+        public _Recursional_Attribute(bool isEnable)
+        {
+            Enable = isEnable;
         }
     }
 
@@ -5102,7 +5126,7 @@ namespace Diagram
     }
 
     [Serializable]
-    public sealed class ToolFile : IDisposable
+    public sealed partial class ToolFile : IDisposable
     {
         public static implicit operator bool(ToolFile file) => file.ErrorException == null;
 
@@ -6706,8 +6730,8 @@ namespace Diagram
     /// </summary>
     public interface IBase
     {
-        void ToMap(out IBaseMap BM);
-        bool FromMap(IBaseMap from);
+        [_Match_(nameof(FromMap))] void ToMap([_Out_]out IBaseMap BM);
+        [_Match_(nameof(ToMap))][_Init_]bool FromMap([_In_]IBaseMap from);
     }
 
     /// <summary>
@@ -6716,8 +6740,8 @@ namespace Diagram
     /// <typeparam name="T">The target type of <see cref="IBaseMap{T}"/> you want to match</typeparam>
     public interface IBase<T> : IBase where T : class, IBaseMap, new()
     {
-        void ToMap(out T BM);
-        bool FromMap(T from);
+        [_Match_(nameof(FromMap))]void ToMap([_Out_]out T BM);
+        [_Match_(nameof(ToMap))][_Init_] bool FromMap([_In_] T from);
     }
 
 
@@ -6728,10 +6752,8 @@ namespace Diagram
     /// </summary>
     public interface IBaseMap
     {
-        void ToObject(out IBase obj);
-        bool FromObject(IBase from);
-        string Serialize();
-        bool Deserialize(string source);
+        [_Match_(nameof(FromObject))]void ToObject([_Out_]out IBase obj);
+        [_Match_(nameof(ToObject))][_Init_]bool FromObject([_In_]IBase from);
     }
 
     /// <summary>
@@ -6740,8 +6762,8 @@ namespace Diagram
     /// <typeparam name="T">The target type of <see cref="IBase{T}"/> you want to match</typeparam>
     public interface IBaseMap<T> : IBaseMap where T : class, IBase, new()
     {
-        void ToObject(out T obj);
-        bool FromObject(T from);
+        [_Match_(nameof(FromObject))] void ToObject([_Out_]out T obj);
+        [_Match_(nameof(ToObject))][_Init_]bool FromObject([_In_]T from);
     }
 
     public interface IExchangeListener
@@ -7371,6 +7393,17 @@ namespace Diagram
         }
     }
 
+    public static class InteropServicesExtension
+    {
+        public static IntPtr GetMemoryAddress(this object o)
+        {
+            GCHandle h = GCHandle.Alloc(o, GCHandleType.Pinned);
+            IntPtr addr = h.AddrOfPinnedObject();
+            //h.Free();
+            return addr;
+        }
+    }
+
     #endregion
 }
 
@@ -7740,7 +7773,67 @@ namespace Diagram
 
     public class ObserveEachOther
     {
+        private object thisHoster;
+        public object ThisHoster
+        {
+            get
+            {
+                return thisHoster;
+            }
+            set
+            {
+                thisHoster = value;
+                HashSet<ObserveEachOther> detecteds = new();
+                HosterDependenciesDetect(ref detecteds);
+            }
+        }
+        public static implicit operator bool(ObserveEachOther self) => self.ThisHoster != null;
+        public event Action<object> CallBack;
+        private HashSet<ObserveEachOther> othersDependencies;
 
+        public ObserveEachOther(object hoster, params ObserveEachOther[] others)
+        {
+            this.othersDependencies = new();
+            foreach (var item in others)
+            {
+                othersDependencies.Add(item);
+            }
+            this.ThisHoster = hoster;
+        }
+
+        [_Match_(nameof(Get))]
+        public object Set(object target)
+        {
+            return this.ThisHoster = target;
+        }
+        public object Get()
+        {
+            return this.ThisHoster;
+        }
+
+        private void HosterDependenciesDetect(ref HashSet<ObserveEachOther> detecteds)
+        {
+            if (detecteds.Contains(this)) return;
+            detecteds.Add(this);
+            bool stats = (bool)this;
+            if (stats == false) return;
+            foreach (var item in othersDependencies)
+            {
+                if (stats &= item == false) break;
+            }
+            if(stats)
+            {
+                ThisRequirementWasMet();
+            }
+            foreach (var item in othersDependencies)
+            {
+                item.HosterDependenciesDetect(ref detecteds);
+            }
+        }
+        private void ThisRequirementWasMet()
+        {
+            CallBack(ThisHoster);
+        }
     }
 
     [UnityEngine.Scripting.Preserve]
