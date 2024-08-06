@@ -37,7 +37,6 @@ namespace Diagram
                 yield return null;
                 yield return null;
                 yield return null;
-                Debug.Log("LineScriptConfig Load");
                 using ToolFile file = new(LauncherPath, false, true, true);
                 if (file)
                 {

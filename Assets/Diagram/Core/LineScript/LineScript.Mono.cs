@@ -10,14 +10,14 @@ namespace Diagram
     [Serializable]
     public partial class LineBehaviour : MonoBehaviour
     {
-        private RectTransform _rectTransform;
+        [SerializeField] protected RectTransform m_rectTransform;
         public RectTransform MyRectTransform
         {
             get
             {
-                if (_rectTransform == null)
-                    _rectTransform = this.transform as RectTransform;
-                return _rectTransform;
+                if (m_rectTransform == null)
+                    m_rectTransform = this.transform as RectTransform;
+                return m_rectTransform;
             }
         }
 
@@ -37,14 +37,22 @@ namespace Diagram
         {
             if (isEnable)
             {
-                TimeListener ??= new();
-                TimeInvokerPointer ??= new();
+                SetupLBTimeContainerEnable();
             }
             else
             {
-                TimeListener = null;
-                TimeInvokerPointer = null;
+                SetupLBTimeContainerDisable();
             }
+        }
+        public void SetupLBTimeContainerEnable()
+        {
+            TimeListener ??= new();
+            TimeInvokerPointer ??= new();
+        }
+        public void SetupLBTimeContainerDisable()
+        {
+            TimeListener = null;
+            TimeInvokerPointer = null;
         }
 
         public virtual void TimeUpdate(ref float time, ref float stats)
@@ -162,24 +170,24 @@ namespace Diagram
             return this;
         }
 
-        [SerializeField] protected MeshRenderer meshRenderer;
-        [SerializeField] protected MeshFilter meshFilter;
-        public MeshRenderer MyRenderer
+        [SerializeField] protected MeshRenderer m_meshRenderer;
+        [SerializeField] protected MeshFilter m_meshFilter;
+        public MeshRenderer MyMeshRenderer
         {
             get
             {
-                if (meshRenderer == null)
-                    meshRenderer = this.SeekComponent<MeshRenderer>();
-                return meshRenderer;
+                if (m_meshRenderer == null)
+                    m_meshRenderer = this.SeekComponent<MeshRenderer>();
+                return m_meshRenderer;
             }
         }
         public MeshFilter MyMeshFilter
         {
             get
             {
-                if (meshFilter == null)
-                    meshFilter = this.SeekComponent<MeshFilter>();
-                return meshFilter;
+                if (m_meshFilter == null)
+                    m_meshFilter = this.SeekComponent<MeshFilter>();
+                return m_meshFilter;
             }
         }
         public Mesh MyMesh { get => MyMeshFilter.mesh; set => MyMeshFilter.mesh = value; }
@@ -192,7 +200,7 @@ namespace Diagram
             else
                 Debug.LogError(file.FilePath + " is not exist");
         }
-        public Material MyMaterial { get => MyRenderer.material; set => MyRenderer.material = value; }
+        public Material MyMaterial { get => MyMeshRenderer.material; set => MyMeshRenderer.material = value; }
         public void LoadMaterial(string package, string name)
         {
             if (package == "None" || name == "None") return;
@@ -221,14 +229,14 @@ namespace Diagram
             GameObject.Destroy(this.transform.Find(name));
         }
 
-        private Animator animator;
+        [SerializeField] private Animator m_animator;
         public Animator MyAnimator
         {
             get
             {
-                if (animator == null)
-                    animator = this.SeekComponent<Animator>();
-                return animator;
+                if (m_animator == null)
+                    m_animator = this.SeekComponent<Animator>();
+                return m_animator;
             }
         }
         public void PlayAnimaton(string name)

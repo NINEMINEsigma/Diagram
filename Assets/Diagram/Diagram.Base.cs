@@ -16,7 +16,6 @@ using System.Text;
 using Diagram.Collections;
 using Diagram.DeepReflection;
 using Newtonsoft.Json;
-using RuntimeInspectorNamespace;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
@@ -87,7 +86,7 @@ namespace Diagram
     /// <summary>
     /// Annotation information
     /// </summary>
-    [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
+    [System.AttributeUsage(AttributeTargets.All, Inherited = false, AllowMultiple = true)]
     public sealed class _Note_Attribute : Attribute
     {
         public string note;
@@ -6957,6 +6956,12 @@ namespace Diagram
                     return result;
                 }
             }
+            for (int i = 0, e = self.transform.childCount; i < e; i++)
+            {
+                var result = self.transform.GetChild(i).SeekComponent<T>();
+                if (result != null)
+                    return result;
+            }
             return null;
         }
 
@@ -7836,10 +7841,43 @@ namespace Diagram
         }
     }
 
+    public class UObjectResultWrapper<T> where T : UnityEngine.Object
+    {
+        public T target;
+        public bool IsRelease = false;
+        public static implicit operator T(UObjectResultWrapper<T> wrapper) => wrapper.target;
+        public UObjectResultWrapper(T component)
+        {
+            target = component;
+        }
+        ~UObjectResultWrapper()
+        {
+            if (IsRelease) return;
+            if (target != null)
+                UnityEngine.Object.Destroy(target);
+        }
+    }
+
+    public class ComponentResultWrapper<T> : UObjectResultWrapper<T> where T : Component
+    {
+        public bool IsWithGameObject = true;
+        public ComponentResultWrapper(T component) : base(component) { }
+        ~ComponentResultWrapper()
+        {
+            if (this.IsRelease) return;
+            if(IsWithGameObject&&target!=null)
+            {
+                GameObject.Destroy(target.gameObject);
+                target = null;
+            }
+        }
+    }
+
     [UnityEngine.Scripting.Preserve]
     public static class ArchitectureDiagram
     {
         private readonly static System.Collections.Generic.Dictionary<Type, BaseWrapper.Architecture> AllArchs = new();
+        [_Init_]
         public static void OnInit()
         {
             AllArchs.Clear();
@@ -7850,7 +7888,7 @@ namespace Diagram
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="arch"></param>
-        public static BaseWrapper.Architecture RegisterArchitecture<T>(T arch) where T : class
+        public static BaseWrapper.Architecture RegisterArchitecture<T>([_In_]T arch) where T : class
         {
             return RegisterArchitecture(typeof(T), arch);
         }
@@ -7859,7 +7897,7 @@ namespace Diagram
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="arch"></param>
-        public static BaseWrapper.Architecture RegisterArchitecture(Type type, object arch)
+        public static BaseWrapper.Architecture RegisterArchitecture([_In_]Type type,[_In_] object arch)
         {
             AllArchs.Add(type, new BaseWrapper.Architecture(arch).Share(out var result));
             return result;
@@ -9686,7 +9724,7 @@ namespace Diagram.DeepReflection
         {
             MethodBase methodBase = member as MethodBase;
             string input = ((!(methodBase != null)) ? member.Name : methodBase.GetFullName());
-            return input.ToTitleCase();
+            return input;//.ToTitleCase();
         }
 
         /// <summary>
