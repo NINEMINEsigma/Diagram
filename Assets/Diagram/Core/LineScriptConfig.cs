@@ -37,7 +37,7 @@ namespace Diagram
                 yield return null;
                 yield return null;
                 yield return null;
-                using ToolFile file = new(LauncherPath, false, true, true);
+                using ToolFile file = new(LauncherPath, true, true, true);
                 if (file)
                 {
                     LineScript core = new();

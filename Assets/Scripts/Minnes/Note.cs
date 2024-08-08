@@ -113,7 +113,7 @@ namespace Game
             get
             {
                 if (focusBoundLight == null)
-                    focusBoundLight = this.meshRenderer.materials[1];
+                    focusBoundLight = this.MyMeshRenderer.materials[1];
                 return focusBoundLight;
             }
         }

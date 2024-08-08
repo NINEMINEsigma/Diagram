@@ -4,13 +4,14 @@ using UnityEngine.UI;
 
 namespace Diagram.UI
 {
-    public class WindowUIBox : LineBehaviour, IDragHandler, IPointerExitHandler
+    public class WindowUIBox : LineBehaviour, IDragHandler, IPointerExitHandler, IWindowComponent
     {
         private Image img;//拖拽的对象
         public Camera uicam;//渲染UI的相机
         private RectTransform rect;//拖拽对象的矩形对象
         private UIEdge currentUiEdge;//当前鼠标所在UI的边缘枚举
-        [SerializeField] private Vector2 MinSizeData = new(10, 10);
+        [SerializeField] private Vector2 MinSizeData = new(100, 100);
+        WindowUI IWindowComponent.Core { get; set; }
 
         private void Start()
         {
@@ -115,7 +116,7 @@ namespace Diagram.UI
         public override void Reset()
         {
             base.Reset();
-            MinSizeData = new(10, 10);
+            MinSizeData = new(100, 100);
         }
     }
 

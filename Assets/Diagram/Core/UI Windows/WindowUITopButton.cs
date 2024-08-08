@@ -1,26 +1,22 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
 namespace Diagram.UI
 {
-    public class WindowUITopButton : LineBehaviour, IPointerClickHandler
+    public class WindowUITopButton : LineBehaviour, IPointerClickHandler, IWindowComponent
     {
         public event Action OnClick;
         public WindowUIBox MyBox;
-        public WindowUITitleBar MyTitleBar;
-        public Text TextComponent;
+        public TMP_Text TextComponent;
+        WindowUI IWindowComponent.Core { get; set; }
         public string text
         {
             get=>TextComponent.text;
             set
             {
                 TextComponent.text = value;
-                MyTitleBar.text = value;
             }
         }
         public void SetWindowActive(bool active)
@@ -32,11 +28,19 @@ namespace Diagram.UI
         private bool IsExpand = true;
         public void Expand()
         {
-            this.MyRectTransform.sizeDelta = new(Mathf.Min(text.Length * 12, 600), this.MyRectTransform.sizeDelta.x);
+            this.MyRectTransform.sizeDelta = new(Mathf.Max(text.Length * 12, 300), this.MyRectTransform.sizeDelta.x);
+            IsExpand = true;
+            MyBox.gameObject.SetActive(IsExpand);
         }
         public void Shrink()
         {
-            this.MyRectTransform.sizeDelta = new(75, this.MyRectTransform.sizeDelta.x);
+            this.MyRectTransform.sizeDelta = new(Mathf.Min(text.Length * 12, 75), this.MyRectTransform.sizeDelta.x);
+            IsExpand = false;
+            MyBox.gameObject.SetActive(IsExpand);
+        }
+        public void CloseWindow()
+        {
+            this.As<IWindowComponent>().Core.Destroy();
         }
 
         public void OnPointerClick(PointerEventData eventData)

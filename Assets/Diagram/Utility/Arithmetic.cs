@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Reflection;
+using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 using static Diagram.Arithmetic.ArithmeticException;
+using static UnityEngine.GraphicsBuffer;
+using static UnityEngine.ParticleSystem;
 
 namespace Diagram.Arithmetic
 {
@@ -233,6 +238,60 @@ namespace Diagram.Arithmetic
                 }
             } while (isContinue);
             return result;
+        }
+
+        public static void SetValueFromString(this ReflectionExtension.DiagramReflectedMember member, string str, params System.Object[] objs)
+        {
+            var type = DiagramType.GetOrCreateDiagramType(member.MemberType);
+            if (type.IsPrimitive)
+            {
+                object value = str;
+                if (type.type == typeof(bool))
+                    value = str == "Ture" || str == "true" || (float.TryParse(str, out var fl) ? (fl > 0) : false);
+                else if (type.type == typeof(float))
+                    value = str.Computef();
+                else if (type.type == typeof(double))
+                    value = str.Compute();
+                else if (type.type == typeof(int))
+                    value = str.Computei();
+                else if (type.type == typeof(long))
+                    value = str.Computel();
+                else if (type.type == typeof(uint))
+                    value = (uint)str.Computel();
+                else if (type.type == typeof(ulong))
+                    value = (ulong)str.Computel();
+                foreach (var obj in objs)
+                    member.SetValue(obj, value);
+            }
+            else if (type.IsEnum)
+            {
+                object value = Enum.Parse(type.type, str);
+                foreach (var obj in objs)
+                    member.SetValue(obj, value);
+            }
+            else if (type.IsCollection && false)
+            {
+                string[] strs = str.Split(',');
+                List<object> values = new();
+                for (int i = 0, e = strs.Length; i < e; i++)
+                {
+                    strs[i] = strs[i].Trim(' ');
+                    Type parType = ReflectionExtension.Typen(strs[i][(strs[i].IndexOf('(') + 1)..strs[i].IndexOf(')')]);
+                    if (parType == null || parType == typeof(string))
+                    {
+
+                    }
+                }
+
+            }
+            else if (type.IsDictionary && false)
+            {
+
+            }
+            else
+            {
+                throw new NotSupport();
+            }
         }
     }
 

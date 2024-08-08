@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Diagram.Arithmetic;
 using Diagram.Message;
-using Unity.VisualScripting.Antlr3.Runtime.Misc;
 using UnityEngine;
 
 namespace Diagram
@@ -84,14 +83,29 @@ namespace Diagram
         public void InitPosition(float x, float y, float z)
         {
             this.transform.position = new Vector3(x, y, z);
+            TimeListener.TryAdd($"{nameof(InitPosition)}", (float time, float stats) =>
+            {
+                if (time > 0 || stats > 0) return;
+                this.transform.position = new Vector3(x, y, z);
+            });
         }
         public void InitRotation(float x, float y, float z)
         {
             this.transform.eulerAngles = new Vector3(x, y, z);
+            TimeListener.TryAdd($"{nameof(InitRotation)}", (float time, float stats) =>
+            {
+                if (time > 0 || stats > 0) return;
+                this.transform.eulerAngles = new Vector3(x, y, z);
+            });
         }
         public void InitScale(float x, float y, float z)
         {
             this.transform.localScale = new Vector3(x, y, z);
+            TimeListener.TryAdd($"{nameof(InitScale)}", (float time, float stats) =>
+            {
+                if (time > 0 || stats > 0) return;
+                this.transform.localScale = new Vector3(x, y, z);
+            });
         }
 
         public LineBehaviour MakeMovement(float startTime, float endTime, float x, float y, float z, float x2, float y2, float z2, int easeType)
@@ -198,7 +212,7 @@ namespace Diagram
             if (file)
                 this.MyMesh = file.LoadAssetBundle().LoadAsset<Mesh>(name);
             else
-                Debug.LogError(file.FilePath + " is not exist");
+                Debug.LogError(file.FilePath + " is not exist"); 
         }
         public Material MyMaterial { get => MyMeshRenderer.material; set => MyMeshRenderer.material = value; }
         public void LoadMaterial(string package, string name)

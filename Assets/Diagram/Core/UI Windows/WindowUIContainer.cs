@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,7 +11,7 @@ namespace Diagram.UI
     /// </summary>
     [Serializable]
     [RequireComponent(typeof(VerticalLayoutGroup))]
-    public class WindowUIContainer : LineBehaviour
+    public class WindowUIContainer : LineBehaviour, IWindowComponent
     {
         private VerticalLayoutGroup m_verticalLayoutGroup;
         public VerticalLayoutGroup MyVerticalLayoutGroup
@@ -29,6 +26,8 @@ namespace Diagram.UI
         public Stack<HorizontalLayoutGroup> ChildsHorizontals = new();
         public HorizontalLayoutGroup CurrentLine => ChildsHorizontals.Count > 0 ? ChildsHorizontals.Peek() : null;
         public RectTransform CurrentLineRectT => CurrentLine == null ? null : CurrentLine.SeekComponent<RectTransform>();
+
+        WindowUI IWindowComponent.Core { get; set; }
 
         protected RectTransform GetHorizontalLine()
         {

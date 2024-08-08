@@ -6,6 +6,7 @@ using System.Reflection;
 using Diagram.Arithmetic;
 using Unity.VisualScripting;
 using UnityEngine;
+using static Diagram.ReflectionExtension;
 
 #pragma warning disable IDE1006 // 命名样式
 
@@ -78,16 +79,23 @@ namespace Diagram
                 {
                     object obj = type.IsStatic() ? null : System.Activator.CreateInstance(type);
                     core.MainUsingInstances.Add(class_name, obj);
-                    foreach (var method in type.GetMethods())
+                    foreach (var method in type.GetMethods(type.IsStatic() ? BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public : AllBindingFlags))
                     {
-                        core.CreatedSymbols.TryAdd(method.Name, new FunctionSymbolWord(method.Name, class_name, new(method, method.GetParameters().Length)));
+                        core.CreatedSymbols.TryAdd(method.Name, new FunctionSymbolWord(method.Name, core.MainUsingInstances[class_name], new(method, method.GetParameters().Length)));
                         string method_name = "";
                         foreach (var parameter in method.GetParameters())
                         {
-                            method_name += "_" + parameter.ParameterType.Name;
+                            method_name += "_" + (parameter.ParameterType == typeof(UnityEngine.Object) ? "UObject" : parameter.ParameterType.Name);
                         }
-                        core.CreatedSymbols.Add(class_name + "." + method.Name + method_name, 
-                            new FunctionSymbolWord(method.Name, core.MainUsingInstances[class_name], new(method, method.GetParameters().Length)));
+                        try
+                        {
+                            core.CreatedSymbols.Add(class_name + "." + method.Name + method_name,
+                                new FunctionSymbolWord(method.Name, core.MainUsingInstances[class_name], new(method, method.GetParameters().Length)));
+                        }
+                        catch(Exception ex)
+                        {
+                            Debug.LogException(ex);
+                        }
                     }
                     return next;
                 }
@@ -610,8 +618,10 @@ namespace Diagram
                         var strs = strword.Split(',');
                         constructorslist[index] = new Vector2(strs[0].Computef(), strs[1].Computef());
                     }
+                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(object)) this.constructorslist[index] = strword;
                     else return false;
                 }
+                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(object)) this.constructorslist[index] = input;
                 else return false;
             }
             catch
@@ -702,6 +712,9 @@ namespace Diagram
                             this_operKeyWord = null;
                             return this;
                         }
+#if UNITY_EDITOR
+                        var testvar = DiagramType.CreateDiagramType(ReferenceInstance.GetType());
+#endif
                         throw new ParseException($"Error Parse->{str}");
                     }
                     else

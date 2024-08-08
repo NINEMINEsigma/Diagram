@@ -51,10 +51,10 @@ namespace Game
             {
                 if (time < startTime || time > endTime)
                 {
-                    this.MyRenderer.enabled = false;
+                    this.MyMeshRenderer.enabled = false;
                     return;
                 }
-                this.MyRenderer.enabled = true;
+                this.MyMeshRenderer.enabled = true;
                 if (this.Pointers.Count >= 2)
                 {
                     AD.Utility.CustomCurveSourceLinner linkingCurve = new();

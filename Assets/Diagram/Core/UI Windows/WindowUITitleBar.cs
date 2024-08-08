@@ -1,9 +1,6 @@
-using System.Collections;
-using System.Collections.Generic;
-using Palmmedia.ReportGenerator.Core.Reporting.Builders;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
 namespace Diagram.UI
 {
@@ -17,10 +14,11 @@ namespace Diagram.UI
     /// <para>-->SubBlock</para>
     /// <para>---->Items...</para>
     /// </summary>
-    public partial class WindowUITitleBar : LineBehaviour, IBeginDragHandler, IDragHandler
+    public partial class WindowUITitleBar : LineBehaviour, IBeginDragHandler, IDragHandler, IWindowComponent
     {
         [SerializeField] private RT_Drag_Helper m_drag_helper;
-        public Text TextComponent;
+        public TMP_Text TextComponent;
+        WindowUI IWindowComponent.Core { get; set; }
         public string text
         {
             get => TextComponent.text;

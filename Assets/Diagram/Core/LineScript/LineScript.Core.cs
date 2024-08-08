@@ -96,8 +96,10 @@ namespace Diagram
                 Debug.LogException(ex);
             }
         }
+        public static event Action<LineScript,bool> LineScriptRuntimeEvent;
         private void CoreRun(string[] ls)
         {
+            LineScriptRuntimeEvent?.Invoke(this, true);
             for (int i = 0; i < ls.Length; i++)
             {
                 string line = ls[i];
@@ -167,6 +169,7 @@ namespace Diagram
                 if (current.Length > 0) words.Add(current);
                 CoreLineParse(i, words.ToArray());
             }
+            LineScriptRuntimeEvent?.Invoke(this, false);
         }
         private void CoreLineParse(int lineindex,string[] words)
         {

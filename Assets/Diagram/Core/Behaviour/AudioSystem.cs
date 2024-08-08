@@ -541,6 +541,11 @@ namespace Diagram
             CurrentClip = Resources.Load<AudioClip>(path);
         }
 
+        public void LoadOnUrl(string url)
+        {
+            LoadOnUrl(url, GetAudioType(url));
+        }
+
         public void LoadOnUrl(string url, AudioType audioType)
         {
             StartCoroutine(LoadAudio(url, audioType));

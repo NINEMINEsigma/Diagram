@@ -21,6 +21,8 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
 using static Diagram.ReflectionExtension;
+using static UnityEngine.GraphicsBuffer;
+using static UnityEngine.ParticleSystem;
 using Debug = UnityEngine.Debug;
 using Quaternion = UnityEngine.Quaternion;
 using Vector3 = UnityEngine.Vector3;
@@ -5344,10 +5346,51 @@ namespace Diagram
             }
         }
 
-        public AssetBundle LoadAssetBundle()
+        //Path->AssetBundle
+        private static Dictionary<string, AssetBundle> AssetsBundlePairs = new();
+
+        /// <summary>
+        /// If you do not want to release resources prematurely, use the host mode
+        /// </summary>
+        /// <param name="isHost">Push <see cref="AssetBundle"/> into <see cref="AssetsBundlePairs"/></param>
+        /// <returns></returns>
+        public AssetBundle LoadAssetBundle(bool isHost = true)
         {
             if (DebugMyself()) return null;
-            return AssetBundle.LoadFromMemory(FileData);
+            if (isHost)
+            {
+                if (AssetsBundlePairs.TryGetValue(this.FilePath, out var ab))
+                    return ab;
+                else
+                {
+                    ab = AssetBundle.LoadFromMemory(FileData);
+                    AssetsBundlePairs.Add(this.FilePath, ab);
+                    return ab;
+                }
+            }
+            else
+            {
+                return AssetBundle.LoadFromMemory(FileData);
+            }
+        }
+        public static AssetBundle GetHostingAssetsBundle(string path)
+        {
+            return AssetsBundlePairs.TryGetValue(path, out var ab) ? ab : null;
+        }
+        public static void ReleaseHostingAssetsBundle(string path, bool unloadAllLoadedObjects = true)
+        {
+            if (AssetsBundlePairs.TryGetValue(path, out var ab))
+            {
+                ab.Unload(unloadAllLoadedObjects);
+            }
+        }
+        public static void ReleaseAllHostingAssetsBundle()
+        {
+            foreach (var ab in AssetsBundlePairs)
+            {
+                ab.Value.Unload(true);
+            }
+            AssetsBundlePairs = new();
         }
 
         public T LoadObject<T>(bool isRefresh, Func<string, T> loader, System.Text.Encoding encoding)
@@ -6212,11 +6255,16 @@ namespace Diagram
 
         public static void CreateFile(string filePath)
         {
-            File.Create(filePath).Close();
+            CreateFile(filePath, out var fs);
+            fs.Close();
         }
 
         public static void CreateFile(string filePath, out FileStream fileStream)
         {
+            if (GetDirectroryOfFile(filePath) == null)
+            {
+                CreateDirectroryOfFile(filePath);
+            }
             fileStream = File.Create(filePath);
         }
 
@@ -6446,6 +6494,7 @@ namespace Diagram
     public class BadImplemented : DiagramException
     {
         public BadImplemented() : base("Bad Implemented") { }
+        public BadImplemented(string message):base(message) { }
     }
     [Serializable]
     public class TodoImplemented : DiagramException
@@ -6461,6 +6510,7 @@ namespace Diagram
     public class NotSupport : DiagramException
     {
         public NotSupport() : base("Not Support") { }
+        public NotSupport(string message) : base(message) { }
     }
 
 
@@ -7449,7 +7499,7 @@ namespace Diagram
     public class BaseWrapper
     {
         private object arch_ontology = null;
-        internal object Ontology => arch_ontology;
+        public object Ontology => arch_ontology;
         public bool IsRegisterCallback { get; protected set; } = false;
         public BaseWrapper(object arch_ontology)
         {
@@ -7556,6 +7606,8 @@ namespace Diagram
             /// </summary>
             protected Architecture RegisterWithCallback(BaseWrapper target)
             {
+                //There was a bug here, so I did an extra check, but it shouldn't have been
+                if (target.IsRegisterCallback) return this;
                 DependenciesLater.Remove(target);
                 if (target.Ontology.TryRunMethodByName("OnDependencyCompleting", out object _, AllBindingFlags) == false)
                     target.Ontology.As<IOnDependencyCompleting>()?.OnDependencyCompleting();
@@ -7568,7 +7620,7 @@ namespace Diagram
             /// </summary>
             private void ToolDetectRegisteredsDependence(Action<Dictionary<Type, bool>> action)
             {
-                List<BaseWrapper> result = new();
+                HashSet<BaseWrapper> result = new();
                 //found targets
                 foreach (var dependence in DependenciesLater)
                 {
@@ -7922,6 +7974,14 @@ namespace Diagram
         {
             if (!AllArchs.Remove(type))
                 throw new ArchitectureException.NotExist();
+        }
+
+        /// <summary>
+        /// <see cref="AllArchs"/> is contains?
+        /// </summary>
+        public static bool ContainsArchitecture(Type type)
+        {
+            return AllArchs.ContainsKey(type);
         }
 
         /// <summary>
