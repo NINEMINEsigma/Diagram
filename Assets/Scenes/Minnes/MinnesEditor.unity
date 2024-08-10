@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 1478.8593, g: 1831.9592, b: 2425.4312, a: 1}
+  m_IndirectSpecularColor: {r: 2884.6719, g: 3279.0034, b: 4296.3037, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -1465,9 +1465,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 55f40e15fe25f0148981ef67e68abf45, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_rectTransform: {fileID: 0}
   MyScriptName: 
-  meshRenderer: {fileID: 0}
-  meshFilter: {fileID: 0}
+  m_meshRenderer: {fileID: 0}
+  m_meshFilter: {fileID: 0}
+  m_animator: {fileID: 0}
   MyMinnesID: 
   FocusTime: 0
   LeftBound: 0
@@ -3147,9 +3149,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7ac24b30b0000534aa9ec780b081e555, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_rectTransform: {fileID: 0}
   MyScriptName: 
-  meshRenderer: {fileID: 0}
-  meshFilter: {fileID: 0}
+  m_meshRenderer: {fileID: 0}
+  m_meshFilter: {fileID: 0}
+  m_animator: {fileID: 0}
   MyMinnesID: 
   FocusTime: 0
 --- !u!114 &1221354224
@@ -3398,9 +3402,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7844647d17924a44ca98ab31ac4242ae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_rectTransform: {fileID: 0}
   MyScriptName: 
-  meshRenderer: {fileID: 0}
-  meshFilter: {fileID: 0}
+  m_meshRenderer: {fileID: 0}
+  m_meshFilter: {fileID: 0}
+  m_animator: {fileID: 0}
   NoteType: {fileID: 648799471}
   EditType: {fileID: 1089952708}
 --- !u!1 &1377595533
@@ -4165,8 +4171,8 @@ MonoBehaviour:
   IsAutoSaveArchitecturesDebugLog: 0
   AutoSaveArchitecturesDebugLogTimeLimit: 60
   AutoSaveArchitecturesDebugLogTimeLimitCounter:
-    clockS: 638576198745554854
-    clockE: 638576198745554854
+    clockS: 638588309526880985
+    clockE: 638588309526880985
     clockU: 0
   _IsOnValidate: 1
   RecordPath: null
@@ -4311,9 +4317,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cbc5f28c2262477449beebf431c3f956, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_rectTransform: {fileID: 0}
   MyScriptName: 
-  meshRenderer: {fileID: 0}
-  meshFilter: {fileID: 0}
+  m_meshRenderer: {fileID: 0}
+  m_meshFilter: {fileID: 0}
+  m_animator: {fileID: 0}
   ASC: {fileID: 2142225431}
   EnableContronller:
   - {fileID: 1221354223}
@@ -5387,9 +5395,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dcc43ad0b19448f469fc946822ac177e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_rectTransform: {fileID: 0}
   MyScriptName: 
-  meshRenderer: {fileID: 0}
-  meshFilter: {fileID: 0}
+  m_meshRenderer: {fileID: 0}
+  m_meshFilter: {fileID: 0}
+  m_animator: {fileID: 0}
   TimeLineRawImage: {fileID: 1417612460}
   TimeLineDisplayLength: 3
   BarlineRawImage: {fileID: 423157424}
@@ -5408,9 +5418,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 481951927163c0a4ca1936d168688e5a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_rectTransform: {fileID: 0}
   MyScriptName: 
-  meshRenderer: {fileID: 0}
-  meshFilter: {fileID: 0}
+  m_meshRenderer: {fileID: 0}
+  m_meshFilter: {fileID: 0}
+  m_animator: {fileID: 0}
   source: {fileID: 2142225426}
   Mixer: {fileID: 24100000, guid: efca3e9adc7ed834fb3c9737a056f007, type: 2}
   Sampling: 1

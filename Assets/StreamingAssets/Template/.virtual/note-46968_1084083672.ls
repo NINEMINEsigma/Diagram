@@ -1,14 +1,33 @@
 include "MinnesNoteDefine.ls"
 
-define @StartX = 3.66719
-define @EndX = 3.66719
-define @StartTime = 1.5
-define @JudgeTime = 4.5
-define @InitScaleX = 1
-define @InitScaleY = 1
-define @InitScaleZ = 1
+define @StartX = 3.667218
+define @EndX = 3.667218
+define @StartTime = 2
+define @JudgeTime = 5
+define @InitScaleX = 0
+define @InitScaleY = 0
+define @InitScaleZ = 0
  
         
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  
  
  
@@ -82,6 +101,25 @@ define @InitScaleZ = 1
  define @StartY = 0
  define @EndY = 0
  call "VirtualNote.ls"
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  
  
  
