@@ -90,7 +90,7 @@ namespace Game
                 new LineScript(("this", this)).Run(file.GetString(false, System.Text.Encoding.UTF8));
             }
             {
-                LineScript.RunScript("Minnes.ls", ("this", this)).ReadAndRun("MinnesNoteDefine.ls").ReadAndRun(ProjectName + ".ls");
+                LineScript.RunScript("Minnes.ls", ("this", this)).ImportScriptAndRun("MinnesNoteDefine.ls").ImportScriptAndRun(ProjectName + ".ls");
             }
             foreach (var item in EnableContronller)
             {

@@ -56,6 +56,16 @@ namespace Diagram
             new LineScript(values).Share(out var script).Run(file.GetString(false, System.Text.Encoding.UTF8));
             return script;
         }
+        /// <summary>
+        /// Obtain a UTF8(<see cref="System.Text.Encoding.UTF8"/>) encoded text file in the specified path <code>Path.Combine(<see cref="BinPath"/>, path)</code><para></para>
+        /// and generate it if it does not exist, then immediately execute the <see cref="LineScript"/> code that should exist in it
+        /// </summary>
+        public LineScript ImportScriptAndRun(string path)
+        {
+            using ToolFile file = new(Path.Combine(BinPath, path), true, true, false);
+            this.Run(file.GetString(false, System.Text.Encoding.UTF8));
+            return this;
+        }
         [_Init_]
         public LineScript(params (string, object)[] createdInstances)
         {
