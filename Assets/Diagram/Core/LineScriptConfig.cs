@@ -21,13 +21,13 @@ namespace Diagram
                 { "else",new SystemKeyWord.else_Key()},
                 { "while",new SystemKeyWord.while_Key()},
                 //{ "for",new SystemKeyWord.for_Key()},
-                { "break",new SystemKeyWord.break_Key()},
                 { "continue",new SystemKeyWord.continue_Key()},
                 { "define",new SystemKeyWord.define_Key()},
                 { "new",new SystemKeyWord.new_Key()},
                 {"include",new SystemKeyWord.include_Key() },
                 {"delete",new SystemKeyWord.delete_Key()},
-                {"call",new SystemKeyWord.call_key() }
+                {"call",new SystemKeyWord.call_key() },
+                {"end", new SystemKeyWord.end_key() }
             };
             StartCoroutine(Waiter());
 
