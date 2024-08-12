@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using Codice.Client.BaseCommands;
+using System.Security.Cryptography;
 using Diagram.Arithmetic;
 using Diagram.Message;
+using Unity.VisualScripting.Antlr3.Runtime.Misc;
 using UnityEngine;
 
 namespace Diagram
@@ -461,6 +464,17 @@ namespace Diagram
         public virtual void ModuleOnDisable()
         {
 
+        }
+    }
+
+    public class ABObject
+    {
+        public UnityEngine.Object target;
+
+        public ABObject(string package,string name)
+        {
+            using ToolFile file = new(name, false, false, false);
+            target = file.LoadAssetBundle(false).LoadAsset(name);
         }
     }
 }

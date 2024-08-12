@@ -8,7 +8,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using static Diagram.ReflectionExtension;
 
-#pragma warning disable IDE1006 // 命名样式
+#pragma warning disable IDE1006
 
 namespace Diagram
 {
@@ -63,6 +63,25 @@ namespace Diagram
     public abstract class SystemKeyWord : LineWord
     {
         public override bool IsKeyWord => true;
+        public class ControllerKeyWord : SystemKeyWord
+        {
+            public override bool AllowLinkLiteralValue => true;
+            public override bool AllowLinkSymbolWord => true;
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
+            {
+                string judgment = next.As<SourceValueWord>().Source;
+                try
+                {
+                    core.CurrentControlKey.Push(new(this, core.CurrentLineindex, Mathf.Approximately(judgment.Computef(), 0.0f) == false));
+                }
+                catch
+                {
+                    core.CurrentControlKey.Push(new(this, core.CurrentLineindex, false == (judgment == "false" || judgment == "False" || judgment.Trim(' ') == "0")));
+                }
+                return next;
+            }
+        }
+
         /// <summary>
         /// <list type="bullet"><b>using</b> class-name</list>
         /// In this script, this class will support functions and fields, which is needed
@@ -92,7 +111,7 @@ namespace Diagram
                             core.CreatedSymbols.Add(class_name + "." + method.Name + method_name,
                                 new FunctionSymbolWord(method.Name, core.MainUsingInstances[class_name], new(method, method.GetParameters().Length)));
                         }
-                        catch(Exception ex)
+                        catch (Exception ex)
                         {
                             Debug.LogException(ex);
                         }
@@ -136,16 +155,11 @@ namespace Diagram
         }
         /// <summary>
         /// <list type="bullet"><b>if</b> literal-value/symbol-word</list>
-        /// If the literal-value or symbol-word is equal to 0, the result is false
+        /// If the literal-value or symbol-word is equal to 0 or "false" or "False", the result is false
         /// </summary>
-        public class if_Key : SystemKeyWord
+        public class if_Key : ControllerKeyWord
         {
-            public override bool AllowLinkLiteralValue => true;
-            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
-            {
-                throw new NotImplementedException();
-                return next;
-            }
+
         }
         /// <summary>
         /// <list type="bullet"><b>else</b> <see langword="if"/></list>
@@ -164,26 +178,9 @@ namespace Diagram
         /// <list type="bullet"><b>while</b> literal-value/symbol-word</list>
         /// Exits only if the literal-value or symbol-word is equal to 0
         /// </summary>
-        public class while_Key : SystemKeyWord
+        public class while_Key : ControllerKeyWord
         {
-            public override bool AllowLinkLiteralValue => true;
-            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
-            {
-                throw new NotImplementedException();
-                return next;
-            }
-        }
-        /// <summary>
-        /// <list type="bullet"><b>break</b></list>
-        /// Exit the current block immediately
-        /// </summary>
-        public class break_Key : SystemKeyWord
-        {
-            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
-            {
-                throw new NotImplementedException();
-                return next;
-            }
+
         }
         /// <summary>
         /// <list type="bullet"><b>continue</b></list>
@@ -193,7 +190,7 @@ namespace Diagram
         {
             public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
-                throw new NotImplementedException();
+                core.CurrentControlKey.Peek().stats = false;
                 return next;
             }
         }
@@ -420,7 +417,7 @@ namespace Diagram
                     }
                     core.SubLineScript(subScript);
                 }
-                else if(next is import_Key)
+                else if (next is import_Key)
                 {
                     is_args_import = true;
                     return this;
@@ -431,7 +428,7 @@ namespace Diagram
                         scriptNames.Add(svw.Source);
                     else
                         throw new ParseException("Need Path of LineScript, but current is " + next.GetType().Name);
-                } 
+                }
                 else
                 {
                     string[] strs = next.As<SourceValueWord>().Source.TrimStart('(', ' ').TrimEnd(')', ' ').Split('=');
@@ -441,7 +438,7 @@ namespace Diagram
                 return this;
             }
 
-            public void OpenCall(LineScript core,string scriptStrings, params (string, object)[] args)
+            public void OpenCall(LineScript core, string scriptStrings, params (string, object)[] args)
             {
                 var tempScriptNames = this.scriptNames.ToList();
                 var tempArgs = this.args.ToList();
@@ -461,6 +458,23 @@ namespace Diagram
                 subScript.Run(scriptStrings);
                 this.scriptNames = tempScriptNames;
                 this.args = tempArgs;
+            }
+        }
+        /// <summary>
+        /// <list type="bullet"><b>end</b> block-name</list>
+        /// End block
+        /// </summary>
+        public class end_key : SystemKeyWord
+        {
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
+            {
+                var control_line = core.CurrentControlKey.Pop();
+                Type control_type = control_line.word.GetType();
+                if (control_type == typeof(while_Key) && control_line.stats)
+                {
+                    core.CurrentLineindex = control_line.line;
+                }
+                return this;
             }
         }
     }
@@ -773,4 +787,4 @@ namespace Diagram
     }
 }
 
-#pragma warning restore IDE1006 // 命名样式
+#pragma warning restore IDE1006

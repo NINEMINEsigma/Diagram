@@ -34,20 +34,29 @@ namespace Diagram.UI
         }
         public void Shrink()
         {
-            this.MyRectTransform.sizeDelta = new(Mathf.Min(text.Length * 12, 75), this.MyRectTransform.sizeDelta.x);
+            this.MyRectTransform.sizeDelta = new(75, this.MyRectTransform.sizeDelta.x);
             IsExpand = false;
             MyBox.gameObject.SetActive(IsExpand);
+        }
+        public void SwitchExpandOrShrink()
+        {
+            if (IsExpand) Shrink();
+            else Expand();
         }
         public void CloseWindow()
         {
             this.As<IWindowComponent>().Core.Destroy();
         }
 
+        private void Start()
+        {
+            OnClick += SwitchExpandOrShrink;
+        }
+
         public void OnPointerClick(PointerEventData eventData)
         {
             if (eventData.button != PointerEventData.InputButton.Left) return;
-            if (IsExpand) Shrink();
-            else Expand();
+            OnClick.Invoke();
         }
     }
 }
