@@ -1,0 +1,16 @@
+{
+    "name": "Diagram.Utility",
+    "rootNamespace": "Diagram",
+    "references": [
+        "GUID:f483e0ad23e06bb44a357b0cd89170c8"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
