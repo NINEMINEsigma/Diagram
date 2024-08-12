@@ -1,5 +1,5 @@
 ManifestFileVersion: 0
-CRC: 2426329617
+CRC: 2687008124
 AssetBundleManifest:
   AssetBundleInfos:
     Info_0:
@@ -7,7 +7,4 @@ AssetBundleManifest:
       Dependencies: {}
     Info_1:
       Name: minnes_default.minnesassets
-      Dependencies: {}
-    Info_2:
-      Name: track
       Dependencies: {}
