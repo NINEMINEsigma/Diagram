@@ -48,6 +48,13 @@ namespace Game
                 }
                 index++;
             }
+            for (int x = 1; x < 13; x++)
+            {
+                for (int y = 0; y < 0; y++)
+                {
+
+                }
+            }
             texture.Apply();
             return texture;
         }

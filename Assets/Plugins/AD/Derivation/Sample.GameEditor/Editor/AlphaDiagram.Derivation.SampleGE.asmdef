@@ -1,0 +1,19 @@
+{
+    "name": "AlphaDiagram.Derivation.SampleGE",
+    "rootNamespace": "",
+    "references": [
+        "GUID:cbe7abb283b1e344bb707c550d5cc31b",
+        "GUID:eda0cf66e49d5904fa04be4d479b53d3"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,22 @@
+{
+    "name": "AlphaDiagram.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:eda0cf66e49d5904fa04be4d479b53d3",
+        "GUID:21b0c8d1703a94250bfac916590cea4f",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:e45627e82eacb1944b110e24d6c1c595"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

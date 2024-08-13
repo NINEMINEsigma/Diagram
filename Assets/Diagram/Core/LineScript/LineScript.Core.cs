@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Codice.CM.Client.Differences;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace Diagram
