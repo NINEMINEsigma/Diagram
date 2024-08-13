@@ -33,6 +33,7 @@ namespace Diagram
     public class LineScript
     {
         public static string BinPath = "";
+        public static string IntervalResultVarName = "@result";
 
         #region Buildup
         /// <summary>
@@ -234,26 +235,22 @@ namespace Diagram
             {
                 if (words[i].Length == 0) continue;
                 BuildEnv(words, i, ref lineindex, out LineWord lineWord);
-                //try
-                //{
-                if (CurrentControlKey.Peek().stats ||
-                    lineWord is SystemKeyWord.end_key)
+                try
                 {
-                    if (Controller.DetectNext(lineWord))
-                        Controller = Controller.ResolveToBehaviour(this, lineWord);
-                    else
-                        ThrowBadParse(lineindex, words, Controller, i, lineWord);
+                    if (CurrentControlKey.Peek().stats ||
+                        lineWord is SystemKeyWord.end_key)
+                    {
+                        if (Controller.DetectNext(lineWord))
+                            Controller = Controller.ResolveToBehaviour(this, lineWord);
+                        else
+                            ThrowBadParse(lineindex, words, Controller, i, lineWord);
+                    }
                 }
-                //}
-                //catch(ParseException ex)
-                //{
-                //    Debug.LogException(ex);
-                //}
-                //catch(Exception ex)
-                //{
-                //    Debug.LogException(ex);
-                //    ThrowBadParse(lineindex, words, Controller, i, lineWord);
-                //}
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                    ThrowBadParse(lineindex, words, Controller, i, lineWord);
+                }
                 ApplyEnv(ref lineindex, ref lineWord);
             }
 

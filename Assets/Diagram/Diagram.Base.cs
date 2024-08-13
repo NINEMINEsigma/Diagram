@@ -20,9 +20,8 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
+using UnityEngine.UIElements;
 using static Diagram.ReflectionExtension;
-using static UnityEngine.GraphicsBuffer;
-using static UnityEngine.ParticleSystem;
 using Debug = UnityEngine.Debug;
 using Quaternion = UnityEngine.Quaternion;
 using Vector3 = UnityEngine.Vector3;
@@ -9002,6 +9001,34 @@ namespace Diagram.Collections
         public T[] Seek<T>() where T : class
         {
             return Seek(typeof(T)).ExchangeToArray<T>();
+        }
+    }
+
+    public class TempArrayIter<T> : IEnumerator<T>
+    {
+        public TempArrayIter(T[] source)
+        {
+            Values = source;
+        }
+        public T[] Values = null;
+        public int Index = 0;
+        public T Current => Values[Index];
+
+        object IEnumerator.Current => Values[Index];
+
+        public void Dispose()
+        {
+            Index = Values.Length;
+        }
+
+        public bool MoveNext()
+        {
+            return Index++ < Values.Length;
+        }
+
+        public void Reset()
+        {
+            Index = 0;
         }
     }
 }

@@ -184,6 +184,62 @@ namespace Diagram.Arithmetic
             return (long)Convert.ToInt64(DataTableHelper.Compute(expression, ""));
         }
 
+        public static bool TryCompute(this string self,out double result)
+        {
+            string expression = ToolReplace(self);
+            try
+            {
+                result = Convert.ToDouble(DataTableHelper.Compute(expression, ""));
+                return true;
+            }
+            catch
+            {
+                result = 0;
+                return false;
+            }
+        }
+        public static bool TryComputef(this string self,out float result)
+        {
+            string expression = ToolReplace(self);
+            try
+            {
+                result = (float)Convert.ToDouble(DataTableHelper.Compute(expression, ""));
+                return true;
+            }
+            catch
+            {
+                result = 0;
+                return false;
+            }
+        }
+        public static bool TryComputei(this string self,out int result)
+        {
+            string expression = ToolReplace(self);
+            try
+            {
+                result = (int)Convert.ToInt32(DataTableHelper.Compute(expression, ""));
+                return true;
+            }
+            catch
+            {
+                result = 0;
+                return false;
+            }
+        }
+        public static bool TryComputel(this string self, out long result)
+        {
+            string expression = ToolReplace(self);
+            try
+            {
+                result = (long)Convert.ToInt64(DataTableHelper.Compute(expression, ""));
+                return true;
+            }
+            catch
+            {
+                result = 0; return false;
+            }
+        }
+
         private static string ToolReplace(string expression)
         {
             string result = expression;
@@ -247,7 +303,7 @@ namespace Diagram.Arithmetic
             {
                 object value = str;
                 if (type.type == typeof(bool))
-                    value = str == "Ture" || str == "true" || (float.TryParse(str, out var fl) ? (fl > 0) : false);
+                    value = str == "false" || str == "False" || (float.TryParse(str, out var fl) && (Mathf.Approximately(0, fl) == false));
                 else if (type.type == typeof(float))
                     value = str.Computef();
                 else if (type.type == typeof(double))

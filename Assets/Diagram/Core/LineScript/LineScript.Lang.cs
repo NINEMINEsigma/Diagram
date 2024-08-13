@@ -67,18 +67,60 @@ namespace Diagram
         {
             public override bool AllowLinkLiteralValue => true;
             public override bool AllowLinkSymbolWord => true;
-            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
+
+            protected bool ToolSet(LineScript core,object input,out bool result)
             {
-                string judgment = next.As<SourceValueWord>().Source;
+                result = false;
                 try
                 {
-                    core.CurrentControlKey.Push(new(this, core.CurrentLineindex, Mathf.Approximately(judgment.Computef(), 0.0f) == false));
+                    if (input is string strword)
+                    {
+                        if (strword.TryCompute(out var dr)) result = dr != 0;
+                        else if (strword.TryComputef(out var fr)) result = fr != 0;
+                        else if (strword.TryComputei(out var ir)) result = ir != 0;
+                        else if (strword.TryComputel(out var lr)) result = lr != 0;
+                        else if (strword == "false" && strword == "False" && strword == "0") result = false;
+                        else if (strword == "true" && strword == "True") result = false;
+                        else result = false;
+                    }
+                    else if (input is bool)
+                        result = (bool)input;
+                    else
+                        result = input.Equals(0) == false;
                 }
                 catch
                 {
-                    core.CurrentControlKey.Push(new(this, core.CurrentLineindex, false == (judgment == "false" || judgment == "False" || judgment.Trim(' ') == "0")));
+                    return false;
                 }
+                return true;
+            }
+
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
+            {
+                if (next is LiteralValueWord lvw)
+                {
+                    ToolCheck(core, lvw.Source);
+                }
+                else if(next is SymbolWord symbol)
+                {
+                    if (core.CreatedInstances.ContainsKey(symbol.Source))
+                    {
+                        ToolCheck(core, symbol.Source);
+                    }
+                } 
                 return next;
+
+                void ToolCheck(LineScript core, string judgment)
+                {
+                    try
+                    {
+                        core.CurrentControlKey.Push(new(this, core.CurrentLineindex, Mathf.Approximately(judgment.Computef(), 0.0f) == false));
+                    }
+                    catch
+                    {
+                        core.CurrentControlKey.Push(new(this, core.CurrentLineindex, false == (judgment == "false" || judgment == "False" || judgment.Trim(' ') == "0")));
+                    }
+                }
             }
         }
 
@@ -248,27 +290,32 @@ namespace Diagram
                 }
                 else
                 {
-                    if (core.CreatedInstances.TryGetValue(next.As<SourceValueWord>().Source, out var obj) &&
-                        DiagramType.CreateDiagramType(obj.GetType()).Share(out var dtype).IsPrimitive &&
-                        dtype.IsValueType && dtype.type != typeof(char))
-                    {
-                        core.CreatedInstances[this.symbol_name] = obj.ToString();
-                        symbol_name.InsertVariable(obj.ToString());
-                    }
-                    else if (obj is string)
-                    {
-                        core.CreatedInstances[this.symbol_name] = obj.ToString();
-                        symbol_name.InsertVariable(obj.ToString());
-                    }
-                    else if (next is LiteralValueWord literal)
-                    {
-                        core.CreatedInstances[this.symbol_name] = literal.Source;
-                        symbol_name.InsertVariable(literal.Source);
-                    }
-                    else symbol_name.InsertVariable(next.As<SourceValueWord>().Source);
+                    NewDefineUsingAssign(core, next, this.symbol_name);
                     this.symbol_name = null;
                     return next;
                 }
+            }
+
+            public static void NewDefineUsingAssign(LineScript core, LineWord next, string symbol_name)
+            {
+                if (core.CreatedInstances.TryGetValue(next.As<SourceValueWord>().Source, out var obj) &&
+                    DiagramType.GetOrCreateDiagramType(obj.GetType()).Share(out var dtype).IsPrimitive &&
+                    dtype.IsValueType && dtype.type != typeof(char))
+                {
+                    core.CreatedInstances[symbol_name] = obj.ToString();
+                    symbol_name.InsertVariable(obj.ToString());
+                }
+                else if (obj is string)
+                {
+                    core.CreatedInstances[symbol_name] = obj.ToString();
+                    symbol_name.InsertVariable(obj.ToString());
+                }
+                else if (next is LiteralValueWord literal)
+                {
+                    core.CreatedInstances[symbol_name] = literal.Source;
+                    symbol_name.InsertVariable(literal.Source);
+                }
+                else symbol_name.InsertVariable(next.As<SourceValueWord>().Source);
             }
         }
         /// <summary>
@@ -472,7 +519,8 @@ namespace Diagram
                 Type control_type = control_line.word.GetType();
                 if (control_type == typeof(while_Key) && control_line.stats)
                 {
-                    core.CurrentLineindex = control_line.line;
+                    //Because the outer loop uses for and is advanced with i++, -1 is needed here
+                    core.CurrentLineindex = control_line.line - 1;
                 }
                 return this;
             }
@@ -504,38 +552,106 @@ namespace Diagram
             this.source = source;
         }
 
+        protected bool ToolSet(LineScript core, string name, string strword)
+        {
+            try
+            {
+                Type targetType = core.CreatedInstances[name].GetType();
+                object result = null;
+                if (targetType == typeof(double)) result = strword.Compute();
+                else if (targetType == typeof(float)) result = strword.Computef();
+                else if (targetType == typeof(int)) result = strword.Computei();
+                else if (targetType == typeof(long)) result = strword.Computel();
+                else if (targetType == typeof(bool)) result = strword != "false" && strword != "False" && strword != "0";
+                else if (targetType == typeof(Vector4))
+                {
+                    var strs = strword.Split(',');
+                    result = new Vector4(strs[0].Computef(), strs[1].Computef(), strs[2].Computef(), strs[3].Computef());
+                }
+                else if (targetType == typeof(Vector3))
+                {
+                    var strs = strword.Split(',');
+                    result = new Vector3(strs[0].Computef(), strs[1].Computef(), strs[2].Computef());
+                }
+                else if (targetType == typeof(Vector2))
+                {
+                    var strs = strword.Split(',');
+                    result = new Vector2(strs[0].Computef(), strs[1].Computef());
+                }
+                else if (targetType == typeof(object)) result = strword;
+                else result = strword;
+                core.CreatedInstances[name] = result;
+            }
+            catch
+            {
+                return false;
+            }
+            return true;
+        }
+
         public class OperatorKeyWord : SymbolWord
         {
             public OperatorKeyWord(string source) : base(source) { }
             public class OperatorEqual : OperatorKeyWord { private OperatorEqual() : base("==") { } public readonly static OperatorEqual instance = new(); }
             public class OperatorAssign : OperatorKeyWord
             {
+                public override bool AllowLinkLiteralValue => true;
+                public override bool AllowLinkSymbolWord => true;
                 private OperatorAssign() : base("=") { }
                 public readonly static OperatorAssign instance = new();
                 public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
                 {
-                    if (string.IsNullOrEmpty(this.ForwardInformation) == false)
+                    if (string.IsNullOrEmpty(this.ForwardInformation) != false)
+                        throw new ParseException("Left word is missing");
+                    else
                     {
-                        if (core.CreatedInstances.ContainsKey(this.ForwardInformation))
+                        next.As<SourceValueWord>(out var svw);
+                        float tcvalue = 0;
+                        if (
+                            core.CreatedInstances.TryGetValue(this.ForwardInformation, out var obj) &&
+                            DiagramType.GetOrCreateDiagramType(obj.GetType()).Share(out var dtype).IsPrimitive &&
+                            dtype.IsValueType && dtype.type != typeof(char))
                         {
-                            if (next is SourceValueWord source)
-                                core.CreatedInstances[this.ForwardInformation] = source.Source;
-                            else throw new ParseException("Bad Type of Word");
+                            if (obj is string)
+                            {
+                                core.CreatedInstances[this.ForwardInformation] = svw.Source;
+                                this.ForwardInformation.InsertVariable(svw.Source);
+                            }
+                            else if (obj is bool)
+                            {
+                                bool temp = svw.Source.TryComputef(out var result) && (Mathf.Approximately(result, 0));
+                                core.CreatedInstances[this.ForwardInformation] = temp;
+                                this.ForwardInformation.InsertVariable(temp ? "1" : "0");
+                            }
+                            if (svw.Source.TryComputef(out tcvalue))
+                            {
+                                core.CreatedInstances[this.ForwardInformation] = tcvalue;
+                                this.ForwardInformation.InsertVariable(tcvalue.ToString());
+                            }
+                            else
+                            {
+                                core.CreatedInstances[this.ForwardInformation] = svw.Source;
+                                this.ForwardInformation.InsertVariable(svw.Source);
+                            }
                         }
-                        else if (core.CreatedSymbols.ContainsKey(this.ForwardInformation))
+                        else if (svw.Source.TryComputef(out tcvalue))
                         {
-                            if (next is SymbolWord symbol)
-                            {
-                                core.CreatedSymbols[this.ForwardInformation] = symbol;
-                            }
-                            else if(next is LiteralValueWord lvw)
-                            {
-                                core.CreatedSymbols[this.ForwardInformation] = new SymbolWord(lvw.Source);
-                            }
-                            else throw new ParseException("Bad Type of Word");
+                            core.CreatedInstances[this.ForwardInformation] = tcvalue;
+                            this.ForwardInformation.InsertVariable(tcvalue.ToString());
                         }
+                        else// if (obj is string)
+                        {
+                            core.CreatedInstances[this.ForwardInformation] = svw.Source;
+                            this.ForwardInformation.InsertVariable(svw.Source);
+                        }
+                        //else if (next is LiteralValueWord literal)
+                        //{
+                        //    core.CreatedInstances[this.ForwardInformation] = literal.Source;
+                        //    this.ForwardInformation.InsertVariable(literal.Source);
+                        //}
+                        //else this.ForwardInformation.InsertVariable(next.As<SourceValueWord>().Source);
+                        //else throw new BadImplemented();
                     }
-                    else throw new ParseException("Left word is missing");
                     return next;
                 }
             }
@@ -678,10 +794,10 @@ namespace Diagram
                 throw new NotImplementedException();
             }
             counter = 0;
-            core.CreatedInstances["@result"] = this.AnyFunctional.Invoke(CoreInvokerInstance, this.constructorslist);
+            core.CreatedInstances[LineScript.IntervalResultVarName] = this.AnyFunctional.Invoke(CoreInvokerInstance, this.constructorslist);
             this.constructorslist = new object[AnyFunctional.ArgsTotal];
 
-            LineWord result = new ReferenceSymbolWord("@result");
+            LineWord result = new ReferenceSymbolWord(LineScript.IntervalResultVarName);
             if (next != null)
             {
                 result = result.ResolveToBehaviour(core, next);
@@ -706,6 +822,7 @@ namespace Diagram
             if (next == null)
             {
                 this_operKeyWord = null;
+                return this;
             }
             if (operKeyWord != null)
             {
@@ -742,44 +859,45 @@ namespace Diagram
                         return result;
                     }
                 }
-                else if (operKeyWord is SymbolWord.OperatorKeyWord.OperatorAssign)
+                else if (operKeyWord is SymbolWord.OperatorKeyWord.OperatorAssign assignOpt)
                 {
-                    if (core.CreatedInstances.ContainsKey(this.Source))
-                    {
-                        if (next is ReferenceSymbolWord ref0)
-                        {
-                            core.CreatedInstances[this.Source] = core.CreatedInstances[ref0.Source];
-                        }
-                        else if (next is LiteralValueWord literalValue)
-                        {
-                            Debug.Log($"{this.source} = {literalValue.source}");
-                            core.CreatedInstances[this.Source] = literalValue.Source;
-                        }
-                        else if(next is SymbolWord newsymbol)
-                        {
-                            if (core.CreatedInstances.TryGetValue(newsymbol.Source, out object target) == false)
-                            {
-                                if (core.CreatedSymbols.TryGetValue(newsymbol.Source, out var tempsymb) == false)
-                                {
-                                    throw new ParseException($"Cannt Found {newsymbol.Source}");
-                                }
-                                else
-                                {
-                                    return tempsymb;
-                                }
-                            }
-                            else
-                                core.CreatedInstances[this.Source] = target;
-                        }
-                        return this;
-                    }
+                    /*if (core.CreatedInstances.ContainsKey(this.Source))
+                    //{
+                    //    if (next is ReferenceSymbolWord ref0)
+                    //    {
+                    //        core.CreatedInstances[this.Source] = core.CreatedInstances[ref0.Source];
+                    //    }
+                    //    else if (next is LiteralValueWord literalValue)
+                    //    {
+                    //        Debug.Log($"{this.source} = {literalValue.source}");
+                    //        core.CreatedInstances[this.Source] = literalValue.Source;
+                    //    }
+                    //    else if(next is SymbolWord newsymbol)
+                    //    {
+                    //        if (core.CreatedInstances.TryGetValue(newsymbol.Source, out object target) == false)
+                    //        {
+                    //            if (core.CreatedSymbols.TryGetValue(newsymbol.Source, out var tempsymb) == false)
+                    //            {
+                    //                throw new ParseException($"Cannt Found {newsymbol.Source}");
+                    //            }
+                    //            else
+                    //            {
+                    //                return tempsymb;
+                    //            }
+                    //        }
+                    //        else
+                    //            core.CreatedInstances[this.Source] = target;
+                    //    }
+                    //    return this;
+                    //}*/
+                    assignOpt.ForwardInformation = this.Source;
+                    return assignOpt.ResolveToBehaviour(core, next);
                 }
             }
             else if (next is SymbolWord.OperatorKeyWord)
             {
                 this_operKeyWord = next as OperatorKeyWord;
-                if (ReferenceInstance == null)
-                    ReferenceInstance = core.CreatedInstances[this.Source];
+                ReferenceInstance ??= core.CreatedInstances[this.Source];
                 return this;
             }
             throw new ParseException("Unknown Parse way");
