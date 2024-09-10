@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using Codice.Client.BaseCommands;
+using System.Security.Cryptography;
 using Diagram.Arithmetic;
 using Diagram.Message;
+using Unity.VisualScripting.Antlr3.Runtime.Misc;
 using UnityEngine;
 
 namespace Diagram
@@ -62,7 +65,19 @@ namespace Diagram
             }
         }
 
-        public void MakeTimeInvoker(float targetTime, string ls)
+        public LineBehaviour MakeValueCurve(string name,float startTime,float endTime,float startValue,float endValue,int easeType)
+        {
+            if (startTime == endTime) return this;
+            var eCurve = new EaseCurve((EaseCurveType)easeType);
+            DiagramMember member = DiagramType.GetOrCreateDiagramType(this.GetType()).GetMember(name);
+            TimeListener.TryAdd($"{nameof(MakeValueCurve)}-{name}-{startTime}-{endTime}", (float time, float stats) =>
+            {
+                if (time < startTime || time > endTime) return;
+                member.reflectedMember.SetValue(this, startValue + (endValue - startValue) * eCurve.Evaluate((float)(time - startTime) / (float)(endTime - startTime)));
+            });
+            return this;
+        }
+        public LineBehaviour MakeTimeInvoker(float targetTime, string ls)
         {
             string symbol = ls + "-" + targetTime.ToString();
             if (TimeListener.TryAdd(symbol, (float time, float stats) =>
@@ -78,6 +93,7 @@ namespace Diagram
             {
                 TimeInvokerPointer[symbol] = false;
             }
+            return this;
         }
 
         public void InitPosition(float x, float y, float z)
@@ -85,7 +101,7 @@ namespace Diagram
             this.transform.position = new Vector3(x, y, z);
             TimeListener.TryAdd($"{nameof(InitPosition)}", (float time, float stats) =>
             {
-                if (time > 0 || stats > 0) return;
+                if (Mathf.Approximately(time, 0)==false) return;
                 this.transform.position = new Vector3(x, y, z);
             });
         }
@@ -94,7 +110,7 @@ namespace Diagram
             this.transform.eulerAngles = new Vector3(x, y, z);
             TimeListener.TryAdd($"{nameof(InitRotation)}", (float time, float stats) =>
             {
-                if (time > 0 || stats > 0) return;
+                if (Mathf.Approximately(time, 0)==false) return;
                 this.transform.eulerAngles = new Vector3(x, y, z);
             });
         }
@@ -103,7 +119,7 @@ namespace Diagram
             this.transform.localScale = new Vector3(x, y, z);
             TimeListener.TryAdd($"{nameof(InitScale)}", (float time, float stats) =>
             {
-                if (time > 0 || stats > 0) return;
+                if (Mathf.Approximately(time, 0) == false) return;
                 this.transform.localScale = new Vector3(x, y, z);
             });
         }

@@ -20,7 +20,6 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
-using UnityEngine.UIElements;
 using static Diagram.ReflectionExtension;
 using Debug = UnityEngine.Debug;
 using Quaternion = UnityEngine.Quaternion;
@@ -7459,6 +7458,336 @@ namespace Diagram
     }
 
     #endregion
+
+    #region EasyOpt
+    //discriminant
+
+    public static class EasyOpt
+    {
+        /// <summary>
+        /// If <see langword="source"/> is null, <see langword="getter"/> will set it
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="source"></param>
+        /// <param name="getter">return a value which will set source</param>
+        /// <returns>return true if source is not null</returns>
+        [_Change_("source")]
+        public static bool Opt<T>(ref T source, [_In_] Func<T> getter)
+        {
+            if (source.Equals(null))
+            {
+                source = getter();
+                return false;
+            }
+            return true;
+        }
+
+        public delegate void MultIfPipelineHandler<T>(ref T first);
+        public delegate void MultIfPipelineHandler<T1, T2>(ref T1 first, ref T2 second);
+        public delegate void MultIfPipelineHandler<T1, T2, T3>(ref T1 first, ref T2 second, ref T3 third);
+        public delegate void MultIfPipelineHandler<T1, T2, T3, T4>(ref T1 first, ref T2 second, ref T3 third, ref T4 fourth);
+
+        #region MultIfPipe
+
+        /// <summary>
+        /// Generate by <see cref="EasyOpt.MultIf{T}(bool, MultIfPipelineHandler{T}, ref T)"/> 
+        /// or sub by <see cref="MultIfPipeUnit{T}.MultIf(bool, ref T)"/>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public class MultIfPipeUnit<T>
+        {
+            public MultIfPipelineHandler<T> handler;
+
+            protected MultIfPipeUnit() { }
+            public MultIfPipeUnit([_In_] MultIfPipelineHandler<T> handler)
+            {
+                this.handler = handler;
+            }
+
+            public virtual MultIfPipeUnit<T> MultIf(bool discriminant, ref T first)
+            {
+                if (discriminant)
+                {
+                    handler(ref first);
+                    return ClosingPipeUnit.instance;
+                }
+                else
+                    return new(handler);
+            }
+            public void Else(ref T first)
+            {
+                MultIf(true, ref first);
+            }
+            public void Else(Action action)
+            {
+                action();
+            }
+
+            public sealed class ClosingPipeUnit : MultIfPipeUnit<T>
+            {
+                internal static readonly ClosingPipeUnit instance = new();
+                public override MultIfPipeUnit<T> MultIf(bool discriminant, ref T variable) => this;
+            }
+        }
+        /// <summary>
+        /// Enable an if-else block for code reuse<para></para>
+        /// Chained calls are implemented using functions(<see cref="MultIfPipelineHandler{T}"/>) 
+        /// with the same name in the returned unit(<see cref="MultIfPipeUnit{T}"/>)
+        /// </summary>
+        public static MultIfPipeUnit<T> MultIf<T>(bool discriminant, [_In_] MultIfPipelineHandler<T> handler, ref T first)
+        {
+            if (discriminant)
+            {
+                handler(ref first);
+                return MultIfPipeUnit<T>.ClosingPipeUnit.instance;
+            }
+            else
+                return new(handler);
+        }
+
+        /// <summary>
+        /// Generate by <see cref="EasyOpt.MultIf{T1, T2}(bool, MultIfPipelineHandler{T1, T2}, ref T1, ref T2)"/> 
+        /// or sub by <see cref="MultIfPipeUnit{T1,T2}.MultIf(bool, ref T1, ref T2)"/>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public class MultIfPipeUnit<T1, T2>
+        {
+            public MultIfPipelineHandler<T1, T2> handler;
+
+            protected MultIfPipeUnit() { }
+            public MultIfPipeUnit([_In_] MultIfPipelineHandler<T1, T2> handler)
+            {
+                this.handler = handler;
+            }
+
+            public virtual MultIfPipeUnit<T1, T2> MultIf(bool discriminant, ref T1 first, ref T2 second)
+            {
+                if (discriminant)
+                {
+                    handler(ref first, ref second);
+                    return ClosingPipeUnit.instance;
+                }
+                else
+                    return new(handler);
+            }
+            public void Else(ref T1 first, ref T2 second)
+            {
+                MultIf(true, ref first, ref second);
+            }
+            public void Else(Action action)
+            {
+                action();
+            }
+
+            public sealed class ClosingPipeUnit : MultIfPipeUnit<T1, T2>
+            {
+                internal static readonly ClosingPipeUnit instance = new();
+                public override MultIfPipeUnit<T1, T2> MultIf(bool discriminant, ref T1 variable, ref T2 second) => this;
+            }
+        }
+        /// <summary>
+        /// Enable an if-else block for code reuse<para></para>
+        /// Chained calls are implemented using functions(<see cref="MultIfPipelineHandler{T1,T2}"/>) 
+        /// with the same name in the returned unit(<see cref="MultIfPipeUnit{T1,T2}"/>)
+        /// </summary>
+        public static MultIfPipeUnit<T1, T2> MultIf<T1, T2>(bool discriminant, [_In_] MultIfPipelineHandler<T1, T2> handler, ref T1 first, ref T2 second)
+        {
+            if (discriminant)
+            {
+                handler(ref first, ref second);
+                return MultIfPipeUnit<T1, T2>.ClosingPipeUnit.instance;
+            }
+            else
+                return new(handler);
+        }
+
+        /// <summary>
+        /// Generate by <see cref="EasyOpt.MultIf{T1, T2,T3}(bool, MultIfPipelineHandler{T1, T2,T3}, ref T1, ref T2,ref T3)"/> 
+        /// or sub by <see cref="MultIfPipeUnit{T1,T2,T3}.MultIf(bool, ref T1, ref T2,ref T3)"/>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public class MultIfPipeUnit<T1, T2, T3>
+        {
+            public MultIfPipelineHandler<T1, T2, T3> handler;
+
+            protected MultIfPipeUnit() { }
+            public MultIfPipeUnit([_In_] MultIfPipelineHandler<T1, T2, T3> handler)
+            {
+                this.handler = handler;
+            }
+
+            public virtual MultIfPipeUnit<T1, T2, T3> MultIf(bool discriminant, ref T1 first, ref T2 second, ref T3 third)
+            {
+                if (discriminant)
+                {
+                    handler(ref first, ref second, ref third);
+                    return ClosingPipeUnit.instance;
+                }
+                else
+                    return new(handler);
+            }
+            public void Else(ref T1 first, ref T2 second, ref T3 third)
+            {
+                MultIf(true, ref first, ref second, ref third);
+            }
+            public void Else(Action action)
+            {
+                action();
+            }
+
+            public sealed class ClosingPipeUnit : MultIfPipeUnit<T1, T2, T3>
+            {
+                internal static readonly ClosingPipeUnit instance = new();
+                public override MultIfPipeUnit<T1, T2, T3> MultIf(bool discriminant, ref T1 variable, ref T2 second, ref T3 third) => this;
+            }
+        }
+        /// <summary>
+        /// Enable an if-else block for code reuse<para></para>
+        /// Chained calls are implemented using functions(<see cref="MultIfPipelineHandler{T1,T2,T3}"/>) 
+        /// with the same name in the returned unit(<see cref="MultIfPipeUnit{T1,T2,T3}"/>)
+        /// </summary>
+        public static MultIfPipeUnit<T1, T2, T3> MultIf<T1, T2, T3>(bool discriminant, [_In_] MultIfPipelineHandler<T1, T2, T3> handler, ref T1 first, ref T2 second, ref T3 third)
+        {
+            if (discriminant)
+            {
+                handler(ref first, ref second, ref third);
+                return MultIfPipeUnit<T1, T2, T3>.ClosingPipeUnit.instance;
+            }
+            else
+                return new(handler);
+        }
+
+        /// <summary>
+        /// Generate by <see cref="EasyOpt.MultIf{T1, T2,T3,T4}(bool, MultIfPipelineHandler{T1, T2,T3,T4}, ref T1, ref T2,ref T3,ref T4)"/> 
+        /// or sub by <see cref="MultIfPipeUnit{T1,T2,T3,T4}.MultIf(bool, ref T1, ref T2,ref T3,ref T4)"/>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public class MultIfPipeUnit<T1, T2, T3, T4>
+        {
+            public MultIfPipelineHandler<T1, T2, T3, T4> handler;
+
+            protected MultIfPipeUnit() { }
+            public MultIfPipeUnit([_In_] MultIfPipelineHandler<T1, T2, T3, T4> handler)
+            {
+                this.handler = handler;
+            }
+
+            public virtual MultIfPipeUnit<T1, T2, T3, T4> MultIf(bool discriminant, ref T1 first, ref T2 second, ref T3 third, ref T4 fourth)
+            {
+                if (discriminant)
+                {
+                    handler(ref first, ref second, ref third, ref fourth);
+                    return ClosingPipeUnit.instance;
+                }
+                else
+                    return new(handler);
+            }
+            public void Else(ref T1 first, ref T2 second, ref T3 third, ref T4 fourth)
+            {
+                MultIf(true, ref first, ref second, ref third,ref fourth);
+            }
+            public void Else(Action action)
+            {
+                action();
+            }
+
+            public sealed class ClosingPipeUnit : MultIfPipeUnit<T1, T2, T3, T4>
+            {
+                internal static readonly ClosingPipeUnit instance = new();
+                public override MultIfPipeUnit<T1, T2, T3, T4> MultIf(bool discriminant, ref T1 variable, ref T2 second, ref T3 third, ref T4 fourth) => this;
+            }
+        }
+        /// <summary>
+        /// Enable an if-else block for code reuse<para></para>
+        /// Chained calls are implemented using functions(<see cref="MultIfPipelineHandler{T1,T2,T3,T4}"/>) 
+        /// with the same name in the returned unit(<see cref="MultIfPipeUnit{T1,T2,T3,T4}"/>)
+        /// </summary>
+        public static MultIfPipeUnit<T1, T2, T3, T4> MultIf<T1, T2, T3, T4>(bool discriminant, [_In_] MultIfPipelineHandler<T1, T2, T3, T4> handler, ref T1 first, ref T2 second, ref T3 third, ref T4 fourth)
+        {
+            if (discriminant)
+            {
+                handler(ref first, ref second, ref third, ref fourth);
+                return MultIfPipeUnit<T1, T2, T3, T4>.ClosingPipeUnit.instance;
+            }
+            else
+                return new(handler);
+        }
+
+        #endregion
+    }
+
+    public static class EasyQueue
+    {
+        /// <summary>
+        /// If <see langword="source"/> is not null, <see langword="queue"/> will <see cref="Queue{T}.Enqueue(T)"/>
+        /// </summary>
+        /// <returns>return true if source is not null</returns>
+        public static bool Opt<QueueT>(ref QueueT source, Queue<QueueT> queue)
+        {
+            if (source.Equals(null)) return false;
+            queue.Enqueue(source);
+            return true;
+        }
+    }
+
+    public static class EasyTri
+    {
+        #region Set
+
+        /// <summary>
+        /// Ternary assignment operator, if true set left otherwise set right
+        /// </summary>
+        public static void Opt<T>(bool discriminant, [_Out_] ref T left, [_Out_] ref T right, [_In_] ref T setter)
+        {
+            if (discriminant)
+                left = setter;
+            else
+                right = setter;
+        }
+
+        /// <summary>
+        /// Ternary assignment operator, if true set left otherwise set right
+        /// </summary>
+        public static void Opt<T>(bool discriminant, [_Out_] ref T left, [_Out_] ref T right, [_In_] Func<T> setter)
+        {
+            if (discriminant)
+                left = setter();
+            else
+                right = setter();
+        }
+
+        /// <summary>
+        /// Ternary assignment operator, if true set left otherwise set right
+        /// </summary>
+        public static void Opt<T>([_In_] Func<bool> discriminant, [_Out_] ref T left, [_Out_] ref T right, [_In_] ref T setter)
+        {
+            if (discriminant())
+                left = setter;
+            else
+                right = setter;
+        }
+
+        /// <summary>
+        /// Ternary assignment operator, if true set left otherwise set right
+        /// </summary>
+        public static void Opt<T>([_In_] Func<bool> discriminant, [_Out_] ref T left, [_Out_] ref T right, [_In_] Func<T> setter)
+        {
+            if (discriminant())
+                left = setter();
+            else
+                right = setter();
+        }
+
+        #endregion
+
+        #region Triarchic
+
+
+
+        #endregion
+    }
+
+    #endregion
 }
 
 namespace Diagram
@@ -8235,7 +8564,7 @@ namespace Diagram.Collections
 
         private Node nodeTree = new Node();
         private int[] nums;
-         
+
         /// <summary>
         /// Buildup by new datas
         /// </summary>
@@ -8244,7 +8573,7 @@ namespace Diagram.Collections
         {
             this.nums = nums;
             return Build(nodeTree, 0, nums.Length - 1);
-        } 
+        }
         /// <summary>
         /// Buildup by nums's data to a new node
         /// </summary>
@@ -8267,7 +8596,7 @@ namespace Diagram.Collections
                 };
             }
             //value init
-            if (node == null) node = new Node(); 
+            if (node == null) node = new Node();
             node.left = left;
             node.right = right;
             node.leftchild = Build(node.leftchild, left, (left + right) / 2);
@@ -8281,16 +8610,16 @@ namespace Diagram.Collections
         }
 
         public int Query(int left, int right)
-        { 
-            return Query(nodeTree, left, right); 
+        {
+            return Query(nodeTree, left, right);
         }
         public int Query(Node node, int left, int right)
         {
             int sum = 0;
             return Query(node, left, right, ref sum);
         }
-        public int Query(Node node, int left, int right,ref int sum)
-        { 
+        public int Query(Node node, int left, int right, ref int sum)
+        {
             if (left <= node.left && right >= node.right)
             {
                 sum += node.Sum;
@@ -8312,7 +8641,7 @@ namespace Diagram.Collections
                 return sum;
             }
         }
-         
+
         public void Update(int index, int key)
         {
             Update(nodeTree, index, key);
@@ -8342,11 +8671,11 @@ namespace Diagram.Collections
                     node.Sum = node.leftchild.Sum + node.rightchild.Sum;
                 }
             }
-        } 
+        }
     }
 
     [System.Serializable]
-    public class SegmentTreeWithData<T> where T : class,new()
+    public class SegmentTreeWithData<T> where T : class, new()
     {
         public class Node
         {
@@ -8416,12 +8745,12 @@ namespace Diagram.Collections
 
         public int Query(int left, int right, ref List<Node> datas)
         {
-            return Query(nodeTree, left, right,ref datas);
+            return Query(nodeTree, left, right, ref datas);
         }
-        public int Query(Node node, int left, int right , ref List<Node> datas)
+        public int Query(Node node, int left, int right, ref List<Node> datas)
         {
             int sum = 0;
-            return Query(node, left, right, ref sum,ref datas);
+            return Query(node, left, right, ref sum, ref datas);
         }
         public int Query(Node node, int left, int right, ref int sum, ref List<Node> datas)
         {
@@ -8438,11 +8767,11 @@ namespace Diagram.Collections
 
                 if (left <= middle)
                 {
-                    Query(node.leftchild, left, right, ref sum,ref datas);
+                    Query(node.leftchild, left, right, ref sum, ref datas);
                 }
                 if (right >= middle)
                 {
-                    Query(node.rightchild, left, right, ref sum,ref datas);
+                    Query(node.rightchild, left, right, ref sum, ref datas);
                 }
                 return sum;
             }
@@ -8452,9 +8781,9 @@ namespace Diagram.Collections
         {
             return First(index, out Node target) ? target : null;
         }
-        public bool First(int index,out Node target)
+        public bool First(int index, out Node target)
         {
-            return First(index,out target);
+            return First(index, out target);
         }
         public bool First(Node node, int index, out Node target)
         {
@@ -8944,7 +9273,7 @@ namespace Diagram.Collections
     /// The following types of effects are not effective: <see cref="IInvariant{T}"/>
     /// </summary>
     [Serializable]
-    public class GeneralizableContainer: HashSet<object>
+    public class GeneralizableContainer : HashSet<object>
     {
         /// <summary>
         /// Find the corresponding type, and if you can't find a match, find a match for its subclass
@@ -9029,6 +9358,338 @@ namespace Diagram.Collections
         public void Reset()
         {
             Index = 0;
+        }
+    }
+
+    public class SimpleIntervalArray<Key,T> : IEnumerable<(Key, T)> where Key:IComparable<Key>, IEquatable<Key> 
+    {
+        private (Key, T)[] m_values;
+        public SimpleIntervalArray(params (Key, T)[] values) : this((IEnumerable<(Key, T)>)values) { }
+        public SimpleIntervalArray([_In_] IEnumerable<(Key, T)> values)
+        {
+            m_values = values.ToArray();
+            if (m_values.Length == 0)
+                throw new BadImplemented("input is empty");
+            Array.Sort(m_values, ((Key, T) first, (Key, T) second) => first.Item1.CompareTo(second.Item1));
+        }
+        public T this[Key index]
+        {
+            get
+            {
+                return m_values[ToolGetIndex(index, 0, m_values.Length)].Item2;
+            }
+        }
+
+        private int ToolGetIndex(Key current_size, int left, int right)
+        {
+            int mid = (right + left) / 2;
+            if (m_values[mid].Item1.CompareTo(current_size) > 0)
+            {
+                return ToolGetIndex(current_size, left, mid);
+            }
+            else if (mid + 1 == right || m_values[mid + 1].Item1.CompareTo(current_size) > 0)
+            {
+                return mid;
+            }
+            else
+            {
+                return ToolGetIndex(current_size, mid, right);
+            }
+        }
+
+        public IEnumerator<(Key, T)> GetEnumerator()
+        {
+            return ((IEnumerable<(Key, T)>)this.m_values).GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return ((IEnumerable)this.m_values).GetEnumerator();
+        }
+
+        public int Count => m_values.Length;
+    }
+
+    public class FastIntervalArray
+    {
+        
+    }
+}
+
+namespace Diagram.Collections.RB
+{
+    /// <summary>
+    /// red is 0, black is 1
+    /// </summary>
+    /// <typeparam name="KeyTy"></typeparam>
+    class BaseTreeNode<KeyTy> where KeyTy: IComparable<KeyTy>
+    {
+        public KeyTy key;
+        /// <summary>
+        /// left pointer to
+        /// </summary>
+        public BaseTreeNode<KeyTy> left;
+        /// <summary>
+        /// right pointer to
+        /// </summary>
+        public BaseTreeNode<KeyTy> right;
+        /// <summary>
+        /// up pointer to
+        /// </summary>
+        public BaseTreeNode<KeyTy> parent;
+        public int color { get; private set; }
+        public bool IsRed
+        {
+            get => color == 0;
+            set => SetRed();
+        }
+        public bool IsBlack
+        {
+            get => color == 1;
+            set => SetBlack();
+        }
+        public BaseTreeNode(KeyTy item, int color)
+        {
+            key = item;
+            left = null;
+            right = null;
+            this.color = color;
+        }
+        public override string ToString()
+        {
+            return $"{key}<{color}>";
+        }
+
+        /// <summary>
+        /// red is 0, black is 1
+        /// </summary>
+        /// <param name="color"></param>
+        public void SetColor(int color)
+        {
+            this.color = color;
+        }
+        /// <summary>
+        /// color is 0
+        /// </summary>
+        public void SetRed() => SetColor(0);
+        /// <summary>
+        /// color is 1
+        /// </summary>
+        public void SetBlack() => SetColor(1);
+    }
+
+    /// <summary>
+    /// A slow but fun red-black tree
+    /// </summary>
+    class EasyRBTree<KeyTy> where KeyTy : IComparable<KeyTy>
+    {
+        /// <summary>
+        /// root pointer
+        /// </summary>
+        public BaseTreeNode<KeyTy> m_root;
+
+        public void Insert(KeyTy item)
+        {
+            //if root is null, root will set up a black<0>
+            if (EasyOpt.Opt(ref m_root,()=> new BaseTreeNode<KeyTy>(item, 0)))
+            {
+                //else insert and check
+                InsertFixUp(Inserts(item));
+            }
+        }
+        public BaseTreeNode<KeyTy> Inserts(KeyTy item)
+        {
+            var node = m_root;
+            var newnode = new BaseTreeNode<KeyTy>(item, 1);
+            while (true)
+            {
+                if (item.CompareTo(node.key) > 0)
+                {
+                    if (node.right == null)
+                    {
+                        newnode.parent = node;
+                        node.right = newnode;
+                        break;
+                    }
+                    node = node.right;
+                }
+                else if (item.CompareTo(node.key) < 0)
+                {
+                    if (node.left == null)
+                    {
+                        newnode.parent = node;
+                        node.left = newnode;
+                        break;
+                    }
+                    node = node.left;
+                }
+                else
+                    throw new BadImplemented("Mult-Key insert");
+            }
+            return newnode;
+        }
+
+        /// <summary>
+        /// The key operation of the <see cref="EasyRBTree{KeyTy}"/>, how to balance the tree<para></para>
+        /// The initial <see cref="BaseTreeNode{KeyTy}.color"/> of the insert <see cref="BaseTreeNode{KeyTy}"/> is red<see langword="0"/>,
+        /// if the parent node is black then do not balance the operation, in addition to that.<para></para>
+        /// <b>There are two types of cases in which a <see cref="EasyRBTree{KeyTy}"/> is inserted into a <see cref="BaseTreeNode{KeyTy}"/>:</b>
+        /// <list type="bullet">Uncle node is red:
+        /// grandfather, father, uncle, current node, the relationship between the three can be changed from "black-red-red" to "red-black-red",
+        /// but the adjusted grandfather node may be unbalanced, and then <see cref="InsertFixUp(BaseTreeNode{KeyTy})"/> recursion is performed
+        /// on the grandfather node</list>
+        /// <list type="bullet">
+        /// The uncle node is black or empty: At this time, it needs to be rotated, and the specific left-handed or right-handed needs to be 
+        /// determined according to whether the current node is in the left or right subtree of the parent node
+        /// </list>
+        /// </summary>
+        public void InsertFixUp(BaseTreeNode<KeyTy> node)
+        {
+            var parentnode = node.parent;
+            //The parent node of the inserted node exists and is red, so we need to balance the operation
+            if (parentnode != null && parentnode.color == 1)
+            {
+                var gparent = parentnode.parent;
+
+                //If the parent node is the left child of the grandfather node
+                if (parentnode == gparent.left)
+                {
+                    var unclenode = gparent.right;
+                    //The tree node exists and is red, you just need to modify the color and then recursively the grandfather node
+                    if (unclenode != null && unclenode.color == 1)
+                    {
+                        gparent.SetRed();
+                        parentnode.SetBlack();
+                        unclenode.SetBlack();
+                        InsertFixUp(gparent);
+                    }
+                    //If the uncle node is red or does not exist, then it is divided into left-handed or right-handed nodes
+                    else
+                    {
+                        //Similar to the LL type in the AVL tree, and thus right-handed
+                        if (node == parentnode.left)
+                        {
+                            parentnode.SetBlack();
+                            gparent.SetRed();
+                            Rightrotate(gparent);
+                        }
+                        //Similar to the LR type in the AVL tree, and thus left-handed
+                        //The parent node is then treated as a newly inserted node and recursively
+                        else if (node == parentnode.right)
+                        {
+                            LeftRotate(parentnode);
+                            InsertFixUp(parentnode);
+                        }
+                    }
+                }
+                //If the parent node is the right child of the grandfather node, exactly similar to the above, Exactly similar to the above
+                else
+                {
+                    var unclenode = gparent.left;
+                    if (unclenode != null && unclenode.color == 1)
+                    {
+                        parentnode.SetBlack();
+                        unclenode.SetBlack();
+                        gparent.SetRed();
+                        InsertFixUp(gparent);
+                    }
+                    else
+                    {
+                        if (node == parentnode.right)
+                        {
+                            parentnode.SetBlack();
+                            gparent.SetRed();
+                            LeftRotate(gparent);
+                        }
+                        else if (node == parentnode.left)
+                        {
+                            Rightrotate(parentnode);
+                            InsertFixUp(parentnode);
+                        }
+                    }
+                }
+            }
+            //Set root black
+            m_root.SetBlack();
+        }
+
+        private void LeftRotate(BaseTreeNode<KeyTy> node)
+        {
+            //这里的旋转操作比AVL树复杂，因为需要交换父子节点之间的关系
+            //注意这里的交换顺序
+            var temp = node.right;
+            node.right = temp.left;
+            if (temp.left != null)
+            {
+                temp.left.parent = node;
+            }
+            temp.parent = node.parent;
+            if (node.parent == null)
+            {
+                m_root = temp;
+            }
+            else
+            {
+                EasyTri.Opt(node == node.parent.left, ref node.parent.left, ref node.parent.right, ref temp);
+            }
+            temp.left = node;
+            node.parent = temp;
+
+        }
+
+        private void Rightrotate(BaseTreeNode<KeyTy> node)
+        {
+            var temp = node.left;
+            node.left = temp.right;
+            //1.调整node右子节点的父节点
+            if (temp.right != null)
+            {
+                temp.right.parent = node;
+            }
+            //2.调整temp节点当前的父节点
+            temp.parent = node.parent;
+            //3.如果node的父节点不存在，则需要修改根节点
+            if (node.parent == null)
+            {
+                m_root = temp;
+            }
+            else
+            {
+                //4.如果node的父节点存在，那么需要把temp节点分配到该父节点对应的位置
+                if (node == node.parent.left)
+                {
+                    node.parent.left = temp;
+                }
+                else if (node == node.parent.right)
+                {
+                    node.parent.right = temp;
+                }
+            }
+            temp.right = node;
+            //5.把temp节点设置为node节点的父节点
+            node.parent = temp;
+            //以上五个步骤，是与AVL树的旋转有区别的地方，其原因是为每一个node增加了parent字段，
+            //因而不仅需要修改节点的左右关系，还需要修改各个节点的父子关系
+        }
+
+        public void LayerOrder(BaseTreeNode<KeyTy> rootnode)
+        {
+            //enum layer
+            BaseTreeNode<KeyTy> current = rootnode;
+            Queue<BaseTreeNode<KeyTy>> queue = new Queue<BaseTreeNode<KeyTy>>();
+            queue.Enqueue(rootnode);
+            while (queue.Any())
+            {
+                var temp = queue.Dequeue();
+                if (temp.left != null)
+                {
+                    queue.Enqueue(temp.left);
+                }
+                if (temp.right != null)
+                {
+                    queue.Enqueue(temp.right);
+                }
+            }
         }
     }
 }

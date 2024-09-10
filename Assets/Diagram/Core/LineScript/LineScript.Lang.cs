@@ -330,81 +330,68 @@ namespace Diagram
             public override bool AllowLinkLiteralValue => true;
             public override bool AllowLinkSymbolWord => true;
             private int counter = 0;
-            private int max = 0;
             private string name = "";
             private string classname = "";
-            private object[] constructorslist = null;
-            private ParameterInfo[] parameterInfos = null;
+            private List<string> constructorslist = new();
+
+            private object[] TransfromConstructorParametors(LineScript core)
+            {
+                return constructorslist.GetSubList<object,string>(T=>true,T=>
+                {
+                    string str = null;
+                    if (core.CreatedInstances.ContainsKey(T))
+                        return core.CreatedInstances[T];
+                    else if(core.CreatedSymbols.ContainsKey(T))
+                    {
+                        if (core.CreatedInstances.ContainsKey(core.CreatedSymbols[T].Source))
+                            return core.CreatedInstances[core.CreatedSymbols[T].Source];
+                        else
+                        {
+                            str = core.CreatedSymbols[T].Source;
+                        }
+                    }
+                    str ??= T;
+                    if (str.TryComputef(out var value))
+                        return value;
+                    else
+                        return str;
+                }).ToArray();
+            }
+
             public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
                 if (counter == 0)
                 {
                     name = next.As<SourceValueWord>().Source;
+                    constructorslist.Clear();
                     counter++;
                     return this;
                 }
                 else if (counter == 1)
                 {
                     classname = next.As<SourceValueWord>().Source;
-                    Type type = ReflectionExtension.Typen(classname);
-                    parameterInfos = type.GetConstructors()[0].GetParameters();
-                    max = parameterInfos.Length;
-                    constructorslist = new object[max];
                     counter++;
                     return this;
                 }
-                else if (counter - 2 < max)
+                else if (counter - 2 > 0 && next != null)
                 {
-                    do
-                    {
-                        int index = counter - 2;
-                        if (next is SymbolWord symbol)
-                        {
-                            if (core.MainUsingInstances.TryGetValue(symbol.source, out object main)) constructorslist[index] = main;
-                            else if (core.CreatedInstances.TryGetValue(symbol.source, out object inst)) constructorslist[index] = inst;
-                            else if (core.CreatedSymbols.TryGetValue(symbol.source, out var in_symbolWord))
-                            {
-                                if (parameterInfos[index].ParameterType == typeof(string)) constructorslist[index] = in_symbolWord.source;
-                                else if (parameterInfos[index].ParameterType == typeof(double)) constructorslist[index] = in_symbolWord.source.Compute();
-                                else if (parameterInfos[index].ParameterType == typeof(float)) constructorslist[index] = in_symbolWord.source.Computef();
-                                else if (parameterInfos[index].ParameterType == typeof(int)) constructorslist[index] = in_symbolWord.source.Computei();
-                                else if (parameterInfos[index].ParameterType == typeof(long)) constructorslist[index] = in_symbolWord.source.Computel();
-                                else if (core.MainUsingInstances.TryGetValue(in_symbolWord.source, out object main2)) constructorslist[index] = main2;
-                                else if (core.CreatedInstances.TryGetValue(in_symbolWord.source, out object inst2)) constructorslist[index] = inst2;
-                                else break;
-                            }
-                        }
-                        else if (next is LiteralValueWord literal)
-                        {
-                            if (parameterInfos[index].ParameterType == typeof(string)) constructorslist[index] = literal.source;
-                            else if (parameterInfos[index].ParameterType == typeof(double)) constructorslist[index] = literal.source.Compute();
-                            else if (parameterInfos[index].ParameterType == typeof(float)) constructorslist[index] = literal.source.Computef();
-                            else if (parameterInfos[index].ParameterType == typeof(int)) constructorslist[index] = literal.source.Computei();
-                            else if (parameterInfos[index].ParameterType == typeof(long)) constructorslist[index] = literal.source.Computel();
-                            else break;
-                        }
-                        else break;
-                        counter++;
-                        return this;
-                    } while (false);
+                    constructorslist.Add(next.As<SourceValueWord>().Source);
+                }
+                else if (next == null)
+                {
                     counter = 0;
-                    throw new ParseException(name + " is cannt created", classname);
-                }
-                counter = 0;
-                if (name == "_")
-                {
-                    name = classname + "#@@" + UnityEngine.Random.value.ToString() + ":" + core.CreatedInstances.Count.ToString();
-                }
-                foreach (var assembly in Diagram.ReflectionExtension.GetAssemblies())
-                {
-                    if (assembly.CreateInstance(classname, false, ReflectionExtension.DefaultBindingFlags, null, constructorslist, null, null).Share(out var obj) != null)
+                    if (name == "_") 
+                        name = classname + "#@@" + UnityEngine.Random.value.ToString() + ":" + core.CreatedInstances.Count.ToString();
+                    object[] constructorParamters = TransfromConstructorParametors(core);
+                    foreach (var assembly in Diagram.ReflectionExtension.GetAssemblies())
                     {
-                        core.CreatedInstances[name] = obj;
-                        break;
+                        if (assembly.CreateInstance(classname, false, ReflectionExtension.DefaultBindingFlags, null, constructorParamters, null, null).Share(out var obj) != null)
+                        {
+                            core.CreatedInstances[name] = obj;
+                            break;
+                        }
                     }
                 }
-                this.constructorslist = null;
-                this.max = 0;
                 return next;
             }
         }
@@ -523,6 +510,88 @@ namespace Diagram
                     core.CurrentLineindex = control_line.line - 1;
                 }
                 return this;
+            }
+        }
+        /// <summary>
+        /// <list type="bullet"><b>set</b> belong [-> belong...] = <see langword="value"/></list>
+        /// Set object value
+        /// </summary>
+        public class set_key : SystemKeyWord
+        {
+            public override bool AllowLinkSymbolWord => true;
+            public override bool AllowLinkLiteralValue => true;
+            DiagramMember member = null;
+            object instance = null;
+            string symbol_name = null;
+            bool IsAssign = false;
+            DiagramMember right_member = null;
+            object right_instance = null;
+            string right_symbol_name = null;
+            public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
+            {
+                if(next is SymbolWord.OperatorKeyWord.OperatorPointTo)
+                    return this;
+                if (next == null)
+                {
+                    SetValue();
+                    ResetLeft();
+                }
+                else
+                    EasyOpt
+                        .MultIf(IsAssign, (ref DiagramMember member, ref object instance, ref string symbol_name) =>
+                        {
+                            string source = next.As<SourceValueWord>().Source;
+                            if (instance == null)
+                            {
+                                symbol_name = source;
+                            }
+                            else if (member == null)
+                            {
+                                member = DiagramType.GetOrCreateDiagramType(instance.GetType()).GetMember(source);
+                            }
+                            else
+                            {
+                                instance = member.reflectedMember.GetValue(instance);
+                                member = DiagramType.GetOrCreateDiagramType(instance.GetType()).GetMember(source);
+                            }
+                        }, ref right_member, ref right_instance, ref right_symbol_name)
+                        .MultIf((next is SymbolWord.OperatorKeyWord.OperatorAssign) == false, ref member, ref instance, ref symbol_name)
+                        .Else(() =>
+                        {
+                            if (next is SymbolWord.OperatorKeyWord.OperatorAssign)
+                            {
+                                IsAssign = true;
+                                ResetRight();
+                            }
+                            else
+                                throw new ParseException();
+                        });
+                return this;
+
+                void SetValue()
+                {
+                    object right_value = right_member == null ? core.CreatedInstances[right_symbol_name] : right_member.reflectedMember.GetValue(right_instance);
+                    if(member==null)
+                    {
+                        core.CreatedInstances[symbol_name] = right_value;
+                    }
+                    else
+                    {
+                        member.reflectedMember.SetValue(instance, right_value);
+                    }
+                }
+                void ResetLeft()
+                {
+                    member = null;
+                    instance = null;
+                    symbol_name = null;
+                }
+                void ResetRight()
+                {
+                    right_member = null;
+                    right_instance = null;
+                    right_symbol_name = null;
+                }
             }
         }
     }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -33,7 +33,9 @@ namespace Diagram.Arithmetic
         }
     }
 
-    public static class ArithmeticExtension
+    #region 算数表达式解析部分
+
+    public static partial class ArithmeticExtension
     {
         public static void InitArithmeticExtension()
         {
@@ -350,6 +352,8 @@ namespace Diagram.Arithmetic
             }
         }
     }
+
+    #endregion
 
     public enum EaseCurveType
     {
@@ -1111,4 +1115,33 @@ namespace Diagram.Arithmetic
         //    
         //}
     }
+
+    #region 扩展函数部分
+
+    public static partial class ArithmeticExtension
+    {
+        public static float[] LerpTo(this float self, float to, int length, EaseCurveType curve = EaseCurveType.Linear)
+        {
+            EaseCurve ec = new(curve);
+            float[] result = new float[length];
+            for (int i = 0; i < length; i++)
+            {
+                result[i] = ec.Evaluate(i / (float)length) * (to - self) + self;
+            }
+            return result;
+        }
+
+        public static int[] LerpTo(this int self, int to, int length, EaseCurveType curve = EaseCurveType.Linear)
+        {
+            EaseCurve ec = new(curve);
+            int[] result = new int[length];
+            for (int i = 0; i < length; i++)
+            {
+                result[i] = (int)(ec.Evaluate(i / (float)length) * (to - self) + self);
+            }
+            return result;
+        }
+    }
+
+    #endregion
 }
