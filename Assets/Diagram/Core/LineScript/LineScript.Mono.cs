@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Codice.Client.BaseCommands;
-using System.Security.Cryptography;
 using Diagram.Arithmetic;
 using Diagram.Message;
-using Unity.VisualScripting.Antlr3.Runtime.Misc;
 using UnityEngine;
 
 namespace Diagram
@@ -65,7 +62,7 @@ namespace Diagram
             }
         }
 
-        public LineBehaviour MakeValueCurve(string name,float startTime,float endTime,float startValue,float endValue,int easeType)
+        public LineBehaviour MakeValueCurve(string name, float startTime, float endTime, float startValue, float endValue, int easeType)
         {
             if (startTime == endTime) return this;
             var eCurve = new EaseCurve((EaseCurveType)easeType);
@@ -101,7 +98,7 @@ namespace Diagram
             this.transform.position = new Vector3(x, y, z);
             TimeListener.TryAdd($"{nameof(InitPosition)}", (float time, float stats) =>
             {
-                if (Mathf.Approximately(time, 0)==false) return;
+                if (Mathf.Approximately(time, 0) == false) return;
                 this.transform.position = new Vector3(x, y, z);
             });
         }
@@ -110,7 +107,7 @@ namespace Diagram
             this.transform.eulerAngles = new Vector3(x, y, z);
             TimeListener.TryAdd($"{nameof(InitRotation)}", (float time, float stats) =>
             {
-                if (Mathf.Approximately(time, 0)==false) return;
+                if (Mathf.Approximately(time, 0) == false) return;
                 this.transform.eulerAngles = new Vector3(x, y, z);
             });
         }
@@ -228,7 +225,7 @@ namespace Diagram
             if (file)
                 this.MyMesh = file.LoadAssetBundle().LoadAsset<Mesh>(name);
             else
-                Debug.LogError(file.FilePath + " is not exist"); 
+                Debug.LogError(file.FilePath + " is not exist");
         }
         public Material MyMaterial { get => MyMeshRenderer.material; set => MyMeshRenderer.material = value; }
         public void LoadMaterial(string package, string name)
@@ -293,7 +290,7 @@ namespace Diagram
             this.gameObject.SetActive(stats);
         }
 
-        public void LetActive(GameObject right,bool stats)
+        public void LetActive(GameObject right, bool stats)
         {
             right.SetActive(stats);
         }

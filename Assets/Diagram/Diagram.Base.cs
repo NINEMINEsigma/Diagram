@@ -1582,7 +1582,6 @@ namespace Diagram
         {
             return (T)Activator.CreateInstance(type);
         }
-
         public static object GetFieldByName(this object self, string fieldName)
         {
             return self.GetType().GetField(fieldName, DefaultBindingFlags).GetValue(self);
@@ -7018,11 +7017,95 @@ namespace Diagram
             return SeekComponent<T>(self.gameObject);
         }
 
+        public static Component SeekComponent(this GameObject self, Type type)
+        {
+            foreach (var item in self.GetComponents<Component>())
+            {
+                if (item.GetType().IsSubclassOf(type))
+                {
+                    return item;
+                }
+            }
+            for (int i = 0, e = self.transform.childCount; i < e; i++)
+            {
+                var result = self.transform.GetChild(i).SeekComponent(type);
+                if (result != null)
+                    return result;
+            }
+            return null;
+        }
+
+        public static Component SeekComponent(this Component self, Type type)
+        {
+            return SeekComponent(self.gameObject, type);
+        }
+
+
+        public static T[] SeekComponents<T>(this GameObject self, int count = -1) where T : class
+        {
+            List<T> results = new();
+            foreach (var item in self.GetComponents<Component>())
+            {
+                if (item.As<T>(out var result))
+                {
+                    results.Add(result);
+                    if (count >= 0 && results.Count > count)
+                        break;
+                }
+            }
+            for (int i = 0, e = self.transform.childCount; i < e; i++)
+            {
+                var result = self.transform.GetChild(i).SeekComponents<T>(count - results.Count);
+                if (result.Length > 0)
+                {
+                    results.AddRange(result);
+                    if (count >= 0 && results.Count > count)
+                        break;
+                }
+            }
+            return results.ToArray();
+        }
+
+        public static T[] SeekComponents<T>(this Component self, int count = -1) where T : class
+        {
+            return SeekComponents<T>(self.gameObject, count);
+        }
+
+        public static Component[] SeekComponents(this GameObject self, Type type, int count = -1)
+        {
+            List<Component> results = new();
+            foreach (var item in self.GetComponents<Component>())
+            {
+                if (item.GetType().IsSubclassOf(type))
+                {
+                    results.Add(item);
+                    if (count >= 0 && results.Count > count)
+                        break;
+                }
+            }
+            for (int i = 0, e = self.transform.childCount; i < e; i++)
+            {
+                var result = self.transform.GetChild(i).SeekComponents(type, count - results.Count);
+                if (result != null)
+                {
+                    results.AddRange(result);
+                    if (count >= 0 && results.Count > count)
+                        break;
+                }
+            }
+            return null;
+        }
+
+        public static Component[] SeekComponents(this Component self, Type type, int count = -1)
+        {
+            return SeekComponents(self.gameObject, type, count);
+        }
+
         #endregion
 
         #region Function Diagram
 
-        public static T[] ExchangeToArray<T,P>(this P[] self) where T : class where P:class
+        public static T[] ExchangeToArray<T, P>(this P[] self) where T : class where P : class
         {
             T[] result = new T[self.Length];
             for (int i = 0; i < self.Length; i++)
