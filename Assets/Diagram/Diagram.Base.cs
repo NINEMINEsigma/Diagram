@@ -8186,6 +8186,226 @@ namespace Diagram
 
             #endregion
         }
+        public class BuffFrames : BaseWrapper
+        {
+            internal Dictionary<string, BaseWrapper> Buffer = new();
+            internal Dictionary<BaseWrapper, Dictionary<string, bool>> DependenciesLater = new();
+            public BuffFrames(object arch) : base(arch)
+            {
+                arch.TryRunMethodByName("OnBuffFramesInit", out object _, DefaultBindingFlags);
+                this.Arch = arch as Architecture;
+            }
+            ~BuffFrames()
+            {
+                this.Ontology.TryRunMethodByName("OnBuffFramesRelease", out object _, DefaultBindingFlags);
+            }
+            public override int GetHashCode()
+            {
+                return this.Ontology.GetType().GetHashCode();
+            }
+            public override bool Equals(object obj)
+            {
+                return this.Ontology.GetType() == obj.GetType();
+            }
+
+            #region Register
+            /// <summary>
+            /// CallBack Timing: dependencies is all registered
+            /// <list type="bullet">Core Method: <b>void OnDependencyCompleting()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public BuffFrames Register<T>(BaseWrapper target, params string[] dependences) where T : class
+            {
+                return Register(typeof(T).Name, target, dependences.ToList());
+            }
+            /// <summary>
+            /// CallBack Timing: dependencies is all registered
+            /// <list type="bullet">Core Method: <b>void OnDependencyCompleting()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public BuffFrames Register<T>(BaseWrapper target, List<string> dependences) where T : class
+            {
+                return Register(typeof(T).Name, target, dependences);
+            }
+            /// <summary>
+            /// CallBack Timing: dependencies is all registered
+            /// <list type="bullet">Core Method: <b>void OnDependencyCompleting()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public BuffFrames Register(string buff_name, BaseWrapper target, params string[] dependences)
+            {
+                return Register(buff_name, target, dependences.ToList());
+            }
+            /// <summary>
+            /// CallBack Timing: dependencies is all registered
+            /// <list type="bullet">Core Method: <b>void OnDependencyCompleting()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public BuffFrames Register(string buff_name, BaseWrapper target, List<string> dependences)
+            {
+                if (Buffer.ContainsKey(buff_name)) throw new ArchitectureException.Exist();
+                target.Arch = this.Arch;
+                Buffer.Add(buff_name, target);
+                DependenciesLater.Add(target, new Dictionary<string, bool>().Share(out var dic));
+                foreach (var item in dependences)
+                {
+                    bool isContains = Buffer.ContainsKey(item);
+                    dic.Add(item, isContains);
+                }
+                ToolDetectRegisteredsDependence((Dictionary<string, bool> dic) =>
+                {
+                    if (dic.ContainsKey(buff_name))
+                        dic[buff_name] = true;
+                });
+                return this;
+            }
+            /// <summary>
+            /// CallBack Timing: now
+            /// <para>Side Effect: DependenciesLater.Remove(target)</para>
+            /// <list type="bullet">Core Method: <b>void OnDependencyCompleting()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            protected BuffFrames RegisterWithCallback(BaseWrapper target)
+            {
+                //There was a bug here, so I did an extra check, but it shouldn't have been
+                if (target.IsRegisterCallback) return this;
+                DependenciesLater.Remove(target);
+                if (target.Ontology.TryRunMethodByName("OnDependencyCompleting", out object _, AllBindingFlags) == false)
+                    target.Ontology.As<IOnDependencyCompleting>()?.OnDependencyCompleting();
+                target.IsRegisterCallback = true;
+                target.Ontology.TryRunMethodByName("OnInit", out object _, AllBindingFlags);
+                return this;
+            }
+            /// <summary>
+            /// Detect Stats Change Just Now
+            /// </summary>
+            private void ToolDetectRegisteredsDependence(Action<Dictionary<string, bool>> action)
+            {
+                HashSet<BaseWrapper> result = new();
+                //found targets
+                foreach (var dependence in DependenciesLater)
+                {
+                    action(dependence.Value);
+                    bool stats = true;
+                    foreach (var types in dependence.Value)
+                    {
+                        stats = stats & types.Value;
+                        if (!stats) break;
+                    }
+                    if (stats) result.Add(dependence.Key);
+                }
+                //call back
+                foreach (var target in result)
+                {
+                    RegisterWithCallback(target);
+                }
+                if (result.Count != 0) ToolDetectRegisteredsDependence();
+            }
+            /// <summary>
+            /// Detect Stats Change Just Now
+            /// </summary>
+            private void ToolDetectRegisteredsDependence()
+            {
+                List<BaseWrapper> result = new();
+                //found targets
+                foreach (var dependence in DependenciesLater)
+                {
+                    bool stats = true;
+                    foreach (var types in dependence.Value)
+                    {
+                        stats = stats & types.Value;
+                        if (!stats) break;
+                    }
+                    if (stats) result.Add(dependence.Key);
+                }
+                //call back
+                foreach (var target in result)
+                {
+                    RegisterWithCallback(target);
+                }
+                if (result.Count != 0) ToolDetectRegisteredsDependence();
+            }
+            #endregion
+
+            #region Unregister
+            /// <summary>
+            /// CallBack Timing: now
+            /// <list type="bullet">Core Method: <b>void OnDependencyReleasing()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public BuffFrames Unregister(params string[] types)
+            {
+                foreach (var type in types)
+                {
+                    Unregister(type);
+                }
+                return this;
+            }
+            /// <summary>
+            /// CallBack Timing: now
+            /// <list type="bullet">Core Method: <b>void OnDependencyReleasing()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public BuffFrames Unregister<T>() where T : class
+            {
+                return Unregister(typeof(T).Name);
+            }
+            /// <summary>
+            /// CallBack Timing: now
+            /// <list type="bullet">Core Method: <b>void OnDependencyReleasing()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            public BuffFrames Unregister(string buff_name)
+            {
+                if (!Buffer.TryGetValue(buff_name, out var wrapper)) throw new ArchitectureException.NotExist();
+                if (!DependenciesLater.ContainsKey(Buffer[buff_name]))
+                {
+                    UnregisterWithCallback(wrapper);
+                }
+                wrapper.Arch = null;
+                Buffer.Remove(buff_name);
+                DependenciesLater.Remove(wrapper);
+                foreach (var dependence in DependenciesLater)
+                {
+                    if (dependence.Value.ContainsKey(buff_name))
+                        dependence.Value[buff_name] = false;
+                }
+                return this;
+            }
+            /// <summary>
+            /// CallBack Timing: now
+            /// <list type="bullet">Core Method: <b>void OnDependencyReleasing()</b></list>
+            /// <list type="bullet">Conventional Method: <b>void OnInit()</b></list>
+            /// </summary>
+            protected BuffFrames UnregisterWithCallback(BaseWrapper target)
+            {
+                DependenciesLater.Remove(target);
+                target.TryRunMethodByName("OnDependencyReleasing", out object _, DefaultBindingFlags);
+                target.IsRegisterCallback = false;
+                return this;
+            }
+            #endregion
+
+            #region Obtain
+
+            public bool Contains(string type) => Buffer.ContainsKey(type);
+
+            #endregion
+
+            #region Diff
+
+            public BuffFrames Diffusing(string command,params object[] args)
+            {
+                foreach (var item in Buffer)
+                {
+                    if (item.Value.Ontology.TryRunMethodByName(command, out var _, DefaultBindingFlags, args) == false)
+                        item.Value.TryRunMethodByName(command, out var _, DefaultBindingFlags, args);
+                }
+                return this;
+            }
+
+            #endregion
+        }
         public class System : BaseWrapper
         {
             public System(object system) : base(system)
