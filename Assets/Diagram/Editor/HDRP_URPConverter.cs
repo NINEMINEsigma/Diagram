@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
@@ -6,18 +6,18 @@ using UnityEngine;
 
 class HDRP2URPConverter
 {
-    // ¸üĞÂÎÄ¼ş¼Ğ
+    // æ›´æ–°æ–‡ä»¶å¤¹
     public static string root;
     private static List<TextureResource> m_textureResourceList;
     private static List<ShaderResource> m_shaderPairs;
 
-    [MenuItem("×ª»»¹ÜÏß/HDRP×ªURP")]
+    [MenuItem("è½¬æ¢ç®¡çº¿/HDRPè½¬URP")]
     static void HdrpToUrp()
     {
         ManualValidate();
         WalkthroughMaterials(root, ReplaceToUrp, GetURPShader);
     }
-    [MenuItem("×ª»»¹ÜÏß/URP×ªHDRP")]
+    [MenuItem("è½¬æ¢ç®¡çº¿/URPè½¬HDRP")]
     static void UrpToHdrp()
     {
         ManualValidate();
@@ -34,10 +34,10 @@ class HDRP2URPConverter
         "HDRP/Lit", "Universal Render Pipeline/Lit", "HDRP/Unlit", "Universal Render Pipeline/Unlit"
     };
 
-    [ContextMenu("³õÊ¼»¯¹¤¾ß")]
+    [ContextMenu("åˆå§‹åŒ–å·¥å…·")]
     private static void ManualValidate()
     {
-        // ¸ü»»texture
+        // æ›´æ¢texture
         m_textureResourceList = new List<TextureResource>();
         for (int i = 0; i < m_switchPropertiesList.Length; i += 2)
         {
@@ -48,7 +48,7 @@ class HDRP2URPConverter
             });
         }
 
-        // ¸ü»»shader
+        // æ›´æ¢shader
         m_shaderPairs = new List<ShaderResource>();
         for (int i = 0; i < m_shaderNameList.Length; i += 2)
         {
