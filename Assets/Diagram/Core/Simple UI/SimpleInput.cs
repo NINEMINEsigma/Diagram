@@ -1,13 +1,9 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using Diagram.Arithmetic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
-using Unity.VisualScripting;
-using Diagram.Arithmetic;
-using Unity.VisualScripting.YamlDotNet.Core.Tokens;
-using System.Linq;
 
 namespace Diagram.UI
 {
@@ -71,7 +67,7 @@ namespace Diagram.UI
         {
             Binding(DiagramType.GetOrCreateDiagramType(target[0].GetType()).GetMember(member), sort, target);
         }
-        public void Binding(DiagramMember member,int sort,params object[] target)
+        public void Binding(DiagramMember member, int sort, params object[] target)
         {
             BindingActions.Add(sort, T =>
             {
@@ -103,7 +99,7 @@ namespace Diagram.UI
         }
         private void OnEnable()
         {
-            if(InputField!=null)
+            if (InputField != null)
             {
                 InputField.onEndEdit.AddListener(OnEditEnd);
             }

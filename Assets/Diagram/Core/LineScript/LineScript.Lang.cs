@@ -242,6 +242,8 @@ namespace Diagram
         /// Define a reference for aim word
         /// <list type="bullet"><b>define</b> <see langword="symbol"/> = literal-value</list>
         /// Define a expression on <see cref="Diagram.Arithmetic.ArithmeticExtension"/>
+        /// <list type="bullet"><b>define</b> <see langword="symbol"/> = <see langword="typen"/></list>
+        /// Define a alias of typen
         /// </summary>
         public class define_Key : SystemKeyWord
         {
@@ -261,6 +263,8 @@ namespace Diagram
                 }
                 else if (is_equals_define == false)
                 {
+                    string symbol_name = this.symbol_name;
+                    this.symbol_name = null;
                     if (next is SymbolWord.OperatorKeyWord.OperatorAssign eqaulword)
                     {
                         is_equals_define = true;
@@ -268,22 +272,29 @@ namespace Diagram
                     }
                     else if (next is ReferenceSymbolWord symbol)
                     {
-                        core.CreatedSymbols[this.symbol_name] = symbol;
-                        this.symbol_name = null;
+                        core.CreatedSymbols[symbol_name] = symbol;
                     }
-                    else if (next is LiteralValueWord literal)
+                    else if (next is SourceValueWord svw)
                     {
-                        core.CreatedInstances[this.symbol_name] = literal.Source;
-                        this.symbol_name = null;
-                    }
-                    else if (next is SymbolWord dsy)
-                    {
-                        core.CreatedSymbols[this.symbol_name] = dsy;
-                        this.symbol_name = null;
+                        if (Typen(svw.Source).Share(out var definedTypenAlias)!=null)
+                        {
+                            core.Typedefineds[symbol_name] = definedTypenAlias;
+                        }
+                        else if (svw is LiteralValueWord literal)
+                        {
+                            core.CreatedInstances[symbol_name] = literal.Source;
+                        }
+                        else if (svw is SymbolWord dsy)
+                        {
+                            core.CreatedSymbols[symbol_name] = dsy;
+                        }
+                        else
+                        {
+                            throw new ParseException($"Unknown Parse Way On: define({this.symbol_name}) {next}");
+                        }
                     }
                     else
                     {
-                        this.symbol_name = null;
                         throw new ParseException($"Unknown Parse Way On: define({this.symbol_name}) {next}");
                     }
                     return this;
@@ -336,12 +347,12 @@ namespace Diagram
 
             private object[] TransfromConstructorParametors(LineScript core)
             {
-                return constructorslist.GetSubList<object,string>(T=>true,T=>
+                return constructorslist.GetSubList<object, string>(T => true, T =>
                 {
                     string str = null;
                     if (core.CreatedInstances.ContainsKey(T))
                         return core.CreatedInstances[T];
-                    else if(core.CreatedSymbols.ContainsKey(T))
+                    else if (core.CreatedSymbols.ContainsKey(T))
                     {
                         if (core.CreatedInstances.ContainsKey(core.CreatedSymbols[T].Source))
                             return core.CreatedInstances[core.CreatedSymbols[T].Source];
@@ -373,15 +384,18 @@ namespace Diagram
                     counter++;
                     return this;
                 }
-                else if (counter - 2 > 0 && next != null)
+                else if (counter == 2 && next != null)
                 {
                     constructorslist.Add(next.As<SourceValueWord>().Source);
+                    return this;
                 }
                 else if (next == null)
                 {
                     counter = 0;
-                    if (name == "_") 
+                    if (name == "_")
                         name = classname + "#@@" + UnityEngine.Random.value.ToString() + ":" + core.CreatedInstances.Count.ToString();
+                    if (core.Typedefineds.ContainsKey(classname))
+                        classname = core.Typedefineds[classname].FullName;
                     object[] constructorParamters = TransfromConstructorParametors(core);
                     foreach (var assembly in Diagram.ReflectionExtension.GetAssemblies())
                     {
@@ -391,8 +405,9 @@ namespace Diagram
                             break;
                         }
                     }
+                    return next;
                 }
-                return next;
+                else return this;
             }
         }
         /// <summary>

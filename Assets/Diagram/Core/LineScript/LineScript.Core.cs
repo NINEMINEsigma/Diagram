@@ -41,9 +41,17 @@ namespace Diagram
         /// </summary>
         public static LineScript GetScript(string path, out string str, params (string, object)[] values)
         {
-            using ToolFile file = new(Path.Combine(BinPath, path), true, true, false);
-            str = file.GetString(false, System.Text.Encoding.UTF8);
-            return new LineScript(values);
+            if (BinPath == "Resource")
+            {
+                str = Resources.Load<TextAsset>(path).text;
+                return new LineScript(values);
+            }
+            else
+            {
+                using ToolFile file = new(Path.Combine(BinPath, path), true, true, false);
+                str = file.GetString(false, System.Text.Encoding.UTF8);
+                return new LineScript(values);
+            }
         }
         /// <summary>
         /// Obtain a UTF8(<see cref="System.Text.Encoding.UTF8"/>) encoded text file in the specified path <code>Path.Combine(<see cref="BinPath"/>, path)</code><para></para>
@@ -51,9 +59,17 @@ namespace Diagram
         /// </summary>
         public static LineScript RunScript(string path, params (string, object)[] values)
         {
-            using ToolFile file = new(Path.Combine(BinPath, path), true, true, false);
-            new LineScript(values).Share(out var script).Run(file.GetString(false, System.Text.Encoding.UTF8));
-            return script;
+            if (BinPath == "Resource")
+            {
+                new LineScript(values).Share(out var script).Run(Resources.Load<TextAsset>(path).text);
+                return script;
+            }
+            else
+            {
+                using ToolFile file = new(Path.Combine(BinPath, path), true, true, false);
+                new LineScript(values).Share(out var script).Run(file.GetString(false, System.Text.Encoding.UTF8));
+                return script;
+            }
         }
         /// <summary>
         /// Obtain a UTF8(<see cref="System.Text.Encoding.UTF8"/>) encoded text file in the specified path <code>Path.Combine(<see cref="BinPath"/>, path)</code><para></para>
@@ -61,9 +77,17 @@ namespace Diagram
         /// </summary>
         public LineScript ImportScriptAndRun(string path)
         {
-            using ToolFile file = new(Path.Combine(BinPath, path), true, true, false);
-            this.Run(file.GetString(false, System.Text.Encoding.UTF8));
-            return this;
+            if (BinPath == "Resource")
+            {
+                this.Run(Resources.Load<TextAsset>(path).text);
+                return this;
+            }
+            else
+            {
+                using ToolFile file = new(Path.Combine(BinPath, path), true, true, false);
+                this.Run(file.GetString(false, System.Text.Encoding.UTF8));
+                return this;
+            }
         }
         [_Init_]
         public LineScript(params (string, object)[] createdInstances)
@@ -81,6 +105,7 @@ namespace Diagram
         public Dictionary<string, object> MainUsingInstances = new();
         public Dictionary<string, object> CreatedInstances = new();
         public Dictionary<string, SymbolWord> CreatedSymbols = new();
+        public Dictionary<string, Type> Typedefineds = new();
         #endregion
 
         /// <summary>

@@ -1,0 +1,16 @@
+{
+    "name": "Diagram.Demo.UI",
+    "rootNamespace": "",
+    "references": [
+        "GUID:dbffc15738ebe5c40a9626d5a2df3b69"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

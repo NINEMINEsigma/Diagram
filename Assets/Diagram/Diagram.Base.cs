@@ -7438,6 +7438,8 @@ namespace Diagram
 
         public static string LinkAndInsert(this IEnumerable<object> self, string key)
         {
+            if (self.Count() == 0) return "";
+            else if (self.Count() == 1) return self.First().ToString();
             string result = "";
             int first = 0, end = self.Count();
             if (self == null || end == 0) return result;
@@ -7453,6 +7455,8 @@ namespace Diagram
 
         public static string LinkAndInsert(this IEnumerable<object> self, char key)
         {
+            if (self.Count() == 0) return "";
+            else if (self.Count() == 1) return self.First().ToString();
             string result = "";
             int first = 0, end = self.Count();
             if (self == null || end == 0) return result;
@@ -7907,9 +7911,27 @@ namespace Diagram
         void Invoke();
     }
 
+    [Serializable]
     public class BaseWrapper
+#if UNITY_EDITOR
+        : ISerializationCallbackReceiver
     {
-        private object arch_ontology = null;
+        public string typeValue;
+        public string stringValue; 
+        public void OnBeforeSerialize()
+        {
+            stringValue = this.ToString();
+            typeValue = Ontology == null ? "null" : Ontology.GetType().Name;
+        }
+
+        public void OnAfterDeserialize()
+        {
+
+        }
+#else
+    {
+#endif
+        protected object arch_ontology = null;
         public object Ontology => arch_ontology;
         public bool IsRegisterCallback { get; protected set; } = false;
         public BaseWrapper(object arch_ontology)
@@ -7929,11 +7951,15 @@ namespace Diagram
         }
         public override int GetHashCode()
         {
-            return arch_ontology.GetHashCode();
+            if (arch_ontology != null)
+                return arch_ontology.GetHashCode();
+            else return base.GetHashCode();
         }
         public override string ToString()
         {
-            return arch_ontology.ToString();
+            if (arch_ontology != null)
+                return arch_ontology.ToString();
+            else return base.ToString();
         }
 
         public class Architecture : BaseWrapper
@@ -8186,18 +8212,25 @@ namespace Diagram
 
             #endregion
         }
+        [Serializable]
         public class BuffFrames : BaseWrapper
         {
-            internal Dictionary<string, BaseWrapper> Buffer = new();
-            internal Dictionary<BaseWrapper, Dictionary<string, bool>> DependenciesLater = new();
+            [SerializeField]internal SerializableDictionary<string, BaseWrapper> Buffer = new();
+            private Dictionary<BaseWrapper, Dictionary<string, bool>> DependenciesLater = new();
             public BuffFrames(object arch) : base(arch)
             {
-                arch.TryRunMethodByName("OnBuffFramesInit", out object _, DefaultBindingFlags);
+                if (arch != null)
+                    arch.TryRunMethodByName("OnBuffFramesInit", out object _, DefaultBindingFlags);
+                else
+                    this.TryRunMethodByName("OnBuffFramesInit", out object _, DefaultBindingFlags);
                 this.Arch = arch as Architecture;
             }
             ~BuffFrames()
             {
-                this.Ontology.TryRunMethodByName("OnBuffFramesRelease", out object _, DefaultBindingFlags);
+                if (this.Arch != null)
+                    this.Arch.TryRunMethodByName("OnBuffFramesRelease", out object _, DefaultBindingFlags);
+                else
+                    this.TryRunMethodByName("OnBuffFramesRelease", out object _, DefaultBindingFlags);
             }
             public override int GetHashCode()
             {
@@ -8270,10 +8303,11 @@ namespace Diagram
                 //There was a bug here, so I did an extra check, but it shouldn't have been
                 if (target.IsRegisterCallback) return this;
                 DependenciesLater.Remove(target);
-                if (target.Ontology.TryRunMethodByName("OnDependencyCompleting", out object _, AllBindingFlags) == false)
+                if (target.Ontology != null && target.Ontology.TryRunMethodByName("OnDependencyCompleting", out object _, AllBindingFlags) == false)
                     target.Ontology.As<IOnDependencyCompleting>()?.OnDependencyCompleting();
                 target.IsRegisterCallback = true;
-                target.Ontology.TryRunMethodByName("OnInit", out object _, AllBindingFlags);
+                if (target.Ontology != null)
+                    target.Ontology.TryRunMethodByName("OnInit", out object _, AllBindingFlags);
                 return this;
             }
             /// <summary>
@@ -8388,13 +8422,23 @@ namespace Diagram
 
             #region Obtain
 
+            public BaseWrapper GetFrame(string type)
+            {
+                if (Buffer.TryGetValue(type, out var wrapper))
+                    return wrapper;
+                else return null;
+            }
+            public BaseWrapper GetFrame<T>()
+            {
+                return GetFrame(typeof(T).Name);
+            }
             public bool Contains(string type) => Buffer.ContainsKey(type);
 
             #endregion
 
             #region Diff
 
-            public BuffFrames Diffusing(string command,params object[] args)
+            public BuffFrames Diffusing(string command, params object[] args)
             {
                 foreach (var item in Buffer)
                 {
