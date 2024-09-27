@@ -51,6 +51,13 @@ namespace Diagram
         {
             return SeekBuffs(buff).Share(out var buffs) == null ? null : buffs[0];
         }
+        /// <summary>
+        /// 寻找指定<see cref="Buff"/>
+        /// </summary>
+        public Buff SeekBuff(string buff,string buffname)
+        {
+            return SeekBuffs(buff).Share(out var buffs) == null ? null : buffs.FirstOrDefault(T => T.Buffer == buffname);
+        }
 
         public InsertResult AddBuff(string key, Buff buff)
         {
@@ -100,6 +107,9 @@ namespace Diagram
     {
         public const string ValueSymbol = "Value";
         public const string BuffSymbol = "Buff";
+        public const string ValueAttributeName = "Value";
+        public const string MaxAttributeName = "Max";
+        public const string MinAttributeName = "Min";
 
         public Buff(string script,string buff)
         {
@@ -113,8 +123,8 @@ namespace Diagram
         public float ComputeExpr(float value)
         {
             string expr = new(ValueExpr);
-            expr.Replace(ValueSymbol, "(" + value.ToString() + ")");
-            expr.Replace(BuffSymbol, "(" + Value.ToString() + ")");
+            expr = expr.Replace(ValueSymbol, "(" + value.ToString() + ")");
+            expr = expr.Replace(BuffSymbol, "(" + Value.ToString() + ")");
             return expr.Computef();
         }
 
@@ -127,21 +137,21 @@ namespace Diagram
         {
             get
             {
-                if(Values.ContainsKey("Value")==false)
-                    Values.Add("Value", 0f);
-                return Values["Value"];
+                if(Values.ContainsKey(ValueAttributeName)==false)
+                    Values.Add(ValueAttributeName, 0f);
+                return Values[ValueAttributeName];
             }
-            set => Values["Value"] = Mathf.Clamp(value, Min, Max);
+            set => Values[ValueAttributeName] = Mathf.Clamp(value, Min, Max);
         }
         public float Max
         {
-            get => Values.TryGetValue("Max", out var max) ? max : Mathf.Infinity;
-            set => Values["Max"] = value;
+            get => Values.TryGetValue(MaxAttributeName, out var max) ? max : Mathf.Infinity;
+            set => Values[MaxAttributeName] = value;
         }
         public float Min
         {
-            get=>Values.TryGetValue("Min",out var min)?min:Mathf.NegativeInfinity;
-            set => Values["Min"] = value;
+            get => Values.TryGetValue(MinAttributeName, out var min) ? min : Mathf.NegativeInfinity;
+            set => Values[MinAttributeName] = value;
         }
 
         public void ChangeValue(string key,float value)
@@ -176,6 +186,11 @@ namespace Diagram
         public virtual void Resonance(BuffManager manager,Buff buff)
         {
 
+        }
+
+        public override string ToString()
+        {
+            return $"{(string.IsNullOrEmpty(Buffer) ? this.GetType().Name : this.Buffer)}({Value})";
         }
     }
 }

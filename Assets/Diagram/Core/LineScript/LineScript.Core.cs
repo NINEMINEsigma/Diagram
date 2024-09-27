@@ -112,7 +112,7 @@ namespace Diagram
         /// Add a sub <see cref="LineScript"/> core
         /// </summary>
         /// <param name="core"></param>
-        public void SubLineScript(LineScript core)
+        public LineScript SubLineScript(LineScript core)
         {
             foreach (var item in core.MainUsingInstances)
             {
@@ -126,14 +126,15 @@ namespace Diagram
             {
                 this.CreatedSymbols.TryAdd(item.Key, item.Value);
             }
+            return this;
         }
 
         #region Run
-        public void Run(LineScriptAssets ls)
+        public LineScript Run(LineScriptAssets ls)
         {
-            Run(ls.text);
+            return Run(ls.text);
         }
-        public void Run(string ls)
+        public LineScript Run(string ls)
         {
             try
             {
@@ -143,6 +144,7 @@ namespace Diagram
             {
                 Debug.LogException(ex);
             }
+            return this;    
         }
         public static event Action<LineScript, bool> LineScriptRuntimeEvent;
         private void CoreRun(string[] ls)

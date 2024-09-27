@@ -808,35 +808,48 @@ namespace Diagram
         {
             try
             {
-                if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == input.GetType()) this.constructorslist[index] = input;
+                Type parameterType = AnyFunctional.CoreMethod.GetParameters()[index].ParameterType;
+                if (parameterType == input.GetType()) this.constructorslist[index] = input;
                 else if (input is string strword)
                 {
-                    if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(string)) this.constructorslist[index] = strword;
-                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(double)) this.constructorslist[index] = strword.Compute();
-                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(float)) this.constructorslist[index] = strword.Computef();
-                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(int)) this.constructorslist[index] = strword.Computei();
-                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(long)) this.constructorslist[index] = strword.Computel();
-                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(bool)) this.constructorslist[index] = strword != "false" && strword != "0";
-                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector4))
+                    if (parameterType == typeof(string)) this.constructorslist[index] = strword;
+                    else if (parameterType == typeof(double)) this.constructorslist[index] = strword.Compute();
+                    else if (parameterType == typeof(float)) this.constructorslist[index] = strword.Computef();
+                    else if (parameterType == typeof(int)) this.constructorslist[index] = strword.Computei();
+                    else if (parameterType == typeof(long)) this.constructorslist[index] = strword.Computel();
+                    else if (parameterType == typeof(bool)) this.constructorslist[index] = strword != "false" && strword != "0";
+                    else if (parameterType == typeof(Vector4))
                     {
                         var strs = strword.Split(',');
                         constructorslist[index] = new Vector4(strs[0].Computef(), strs[1].Computef(), strs[2].Computef(), strs[3].Computef());
                     }
-                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector3))
+                    else if (parameterType == typeof(Vector3))
                     {
                         var strs = strword.Split(',');
                         constructorslist[index] = new Vector3(strs[0].Computef(), strs[1].Computef(), strs[2].Computef());
                     }
-                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(Vector2))
+                    else if (parameterType == typeof(Vector2))
                     {
                         var strs = strword.Split(',');
                         constructorslist[index] = new Vector2(strs[0].Computef(), strs[1].Computef());
                     }
-                    else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(object)) this.constructorslist[index] = strword;
+                    else if (parameterType == typeof(object)) this.constructorslist[index] = strword;
                     else return false;
                 }
-                else if (AnyFunctional.CoreMethod.GetParameters()[index].ParameterType == typeof(object)) this.constructorslist[index] = input;
-                else return false;
+                else if (parameterType == typeof(object)) this.constructorslist[index] = input;
+                else
+                {
+                    try
+                    {
+                        object cast = Convert.ChangeType(input, parameterType);
+                        this.constructorslist[index] = cast;
+                        return true;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
             }
             catch
             {
@@ -857,7 +870,8 @@ namespace Diagram
                 do
                 {
                     int index = counter;
-                    if (next is SymbolWord symbol)
+                    if (next is ReferenceSymbolWord reference && ToolSet(index, reference)) { }
+                    else if (next is SymbolWord symbol)
                     {
                         if (core.MainUsingInstances.TryGetValue(symbol.source, out object main) && ToolSet(index, main)) { }
                         else if (core.CreatedInstances.TryGetValue(symbol.source, out object inst) && ToolSet(index, inst)) { }
@@ -868,6 +882,7 @@ namespace Diagram
                             else if (ToolSet(index, in_symbolWord)) { }
                             else break;
                         }
+                        else break;
                     }
                     else if (next is SourceValueWord source && ToolSet(index, source.Source)) { }
                     else break;
@@ -875,7 +890,7 @@ namespace Diagram
                     return this;
                 } while (false);
                 counter = 0;
-                throw new NotImplementedException();
+                throw new NotImplementedException($"current next is {next}");
             }
             counter = 0;
             core.CreatedInstances[LineScript.IntervalResultVarName] = this.AnyFunctional.Invoke(CoreInvokerInstance, this.constructorslist);
@@ -905,8 +920,21 @@ namespace Diagram
             OperatorKeyWord operKeyWord = this_operKeyWord;
             if (next == null)
             {
-                this_operKeyWord = null;
-                return this;
+                if (Functional == null)
+                {
+                    this_operKeyWord = null;
+                    return this;
+                }
+                else
+                {
+                    var result = Functional.ResolveToBehaviour(core, next);
+                    if (result == Functional)
+                    {
+                        this_operKeyWord = null;
+                        Functional = null;
+                    }
+                    return result;
+                }
             }
             if (operKeyWord != null)
             {
@@ -928,14 +956,14 @@ namespace Diagram
                             return this;
                         }
 #if UNITY_EDITOR
-                        var testvar = DiagramType.CreateDiagramType(ReferenceInstance.GetType());
+                        var testvar = DiagramType.GetOrCreateDiagramType(ReferenceInstance.GetType());
 #endif
                         throw new ParseException($"Error Parse->{str}");
                     }
                     else
                     {
                         var result = Functional.ResolveToBehaviour(core, next);
-                        if(result==Functional)
+                        if (result == Functional)
                         {
                             this_operKeyWord = null;
                             Functional = null;
@@ -986,6 +1014,27 @@ namespace Diagram
             }
             throw new ParseException("Unknown Parse way");
         }
+    }
+
+    public class ListBuilder
+    {
+        public List<object> data = new();
+
+        public object[] ToArray()
+        {
+            return data.ToArray();
+        }
+        public void FromArray(object[] from)
+        {
+            data = from.ToList();
+        }
+        public ListBuilder Add(object target)
+        {
+            data.Add(target);
+            return this;
+        }
+
+        public static implicit operator object[](ListBuilder builder) => builder.ToArray();
     }
 }
 

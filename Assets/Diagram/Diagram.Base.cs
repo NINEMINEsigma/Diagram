@@ -7166,22 +7166,12 @@ namespace Diagram
 
         public static List<Value> GetSubListAboutValue<Key, Value>(this Dictionary<Key, Value> self)
         {
-            List<Value> result = new();
-            foreach (var item in self)
-            {
-                result.Add(item.Value);
-            }
-            return result;
+            return self.Values.GetSubList(T => true, T => T);
         }
 
         public static List<Key> GetSubListAboutKey<Key, Value>(this Dictionary<Key, Value> self)
         {
-            List<Key> result = new();
-            foreach (var item in self)
-            {
-                result.Add(item.Key);
-            }
-            return result;
+            return self.Keys.GetSubList(T => true, T => T);
         }
 
         public static List<T> GetSubListAboutValue<T, Key, Value>(this Dictionary<Key, Value> self) where Value : T

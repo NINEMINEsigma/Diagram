@@ -18,14 +18,22 @@ public class BufferTest : MonoBehaviour
         if (stats == false) return;
         string script = Resources.Load<TextAsset>("__demo/buffcommand").text;
         new LineScript(("this", this), ("manager", BuffManager)).Share(out var core).Run(script);
-        Dictionary<string, string> mapper = new();
         string script2 = Resources.Load<TextAsset>("__demo/buffcommand_after").text;
         core.Run(script2);
+        new LineScript(("this", this)).Share(out var xcore)
+            .Run("new(list) Diagram.ListBuilder()")
+            .Run("list -> Add(1)")
+            .Run("list -> Add(2)");
+        xcore
+            .Run("list -> ToArray()");
+        xcore
+            .Run("this -> Log(@result)");
         stats = false;
     }
 
-    public void Log(object tar)
+    public void Log(params object[] tar)
     {
-        Debug.Log(tar);
+        foreach (var item in tar)
+            Debug.Log(item);
     }
 }

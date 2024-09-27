@@ -64,8 +64,8 @@ namespace Diagram
 
     public partial class ClockRole : Role
     {
-        public Dictionary<string, float> TimeModules = new();
-        public Dictionary<string, float> SpeedModules = new();
+        public Dictionary<string, float> TimeModules = new() { { "Global", 0 } };
+        public Dictionary<string, float> SpeedModules = new() { { "Global", 1 } };
 
         protected override void BeforeLoadLS()
         {
@@ -86,9 +86,9 @@ namespace Diagram
 
         protected virtual void FixedUpdate()
         {
-            foreach (var timeClock in TimeModules)
+            foreach (var timeClock in TimeModules.GetSubListAboutKey())
             {
-                TimeModules[timeClock.Key] += SpeedModules[timeClock.Key] * Time.fixedDeltaTime;
+                TimeModules[timeClock] += SpeedModules[timeClock] * Time.fixedDeltaTime;
             }
         }
     }
@@ -222,7 +222,7 @@ namespace Diagram
         }
         public virtual bool IsAlive()
         {
-            return this.GetHealthAttribute().Value > 0;
+            return this.ContainsBuff(this.HealthAttributeName) ? this.GetHealthAttribute().Value > 0 : true;
         }
         public virtual AnyInfomation UnderAttack(AnyInfomation info)
         {
@@ -305,11 +305,13 @@ namespace Diagram
 
     #region Buff Definition
 
-    public abstract class AttributeBuff : Buff
+    public class AttributeBuff : Buff
     {
+        public override float Value { get; set; }
+
         public AttributeBuff(float initValue, string buffname) : base(null, buffname)
         {
-            this.InitValue("Value", initValue);
+            this.Value = initValue;
         }
 
         public readonly static string[] AttributeNames = { HP.HPBuffKey };
@@ -651,14 +653,6 @@ namespace Diagram
     #endregion
 
     #region Attack Modules
-
-    public partial class AttackModule
-    {
-        public void ReleaseAttack()
-        {
-
-        }
-    }
 
     #endregion
 }

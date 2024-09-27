@@ -1,0 +1,19 @@
+{
+    "name": "Demo.Card",
+    "rootNamespace": "DemoGame",
+    "references": [
+        "GUID:dbffc15738ebe5c40a9626d5a2df3b69",
+        "GUID:5f38ea9612c5c9f4d99e714707f64c02",
+        "GUID:33d1da912bcf8ae48810e44785acc8f7",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
