@@ -5356,12 +5356,12 @@ namespace Diagram
             if (DebugMyself()) return null;
             if (isHost)
             {
-                if (AssetsBundlePairs.TryGetValue(this.FilePath, out var ab))
+                if (AssetsBundlePairs.TryGetValue(this.FilePath, out var ab) && ab)
                     return ab;
                 else
                 {
                     ab = AssetBundle.LoadFromMemory(FileData);
-                    AssetsBundlePairs.Add(this.FilePath, ab);
+                    AssetsBundlePairs[this.FilePath] = ab;
                     return ab;
                 }
             }
@@ -7101,6 +7101,11 @@ namespace Diagram
             return SeekComponents(self.gameObject, type, count);
         }
 
+        public static bool IsTrue(this object self)
+        {
+            return self.Equals(false) == false && self.Equals(0) == false;
+        }
+
         #endregion
 
         #region Function Diagram
@@ -7591,11 +7596,11 @@ namespace Diagram
                 else
                     return new(handler);
             }
-            public void Else(ref T first)
+            public virtual void Else(ref T first)
             {
                 MultIf(true, ref first);
             }
-            public void Else(Action action)
+            public virtual void Else(Action action)
             {
                 action();
             }
@@ -7604,6 +7609,9 @@ namespace Diagram
             {
                 internal static readonly ClosingPipeUnit instance = new();
                 public override MultIfPipeUnit<T> MultIf(bool discriminant, ref T variable) => this;
+
+                public override void Else(Action action) { }
+                public override void Else(ref T first) { }
             }
         }
         /// <summary>
@@ -7647,11 +7655,11 @@ namespace Diagram
                 else
                     return new(handler);
             }
-            public void Else(ref T1 first, ref T2 second)
+            public virtual void Else(ref T1 first, ref T2 second)
             {
                 MultIf(true, ref first, ref second);
             }
-            public void Else(Action action)
+            public virtual void Else(Action action)
             {
                 action();
             }
@@ -7660,6 +7668,8 @@ namespace Diagram
             {
                 internal static readonly ClosingPipeUnit instance = new();
                 public override MultIfPipeUnit<T1, T2> MultIf(bool discriminant, ref T1 variable, ref T2 second) => this;
+                public override void Else(Action action) { }
+                public override void Else(ref T1 first, ref T2 second) { }
             }
         }
         /// <summary>
@@ -7703,11 +7713,11 @@ namespace Diagram
                 else
                     return new(handler);
             }
-            public void Else(ref T1 first, ref T2 second, ref T3 third)
+            public virtual void Else(ref T1 first, ref T2 second, ref T3 third)
             {
                 MultIf(true, ref first, ref second, ref third);
             }
-            public void Else(Action action)
+            public virtual void Else(Action action)
             {
                 action();
             }
@@ -7716,6 +7726,8 @@ namespace Diagram
             {
                 internal static readonly ClosingPipeUnit instance = new();
                 public override MultIfPipeUnit<T1, T2, T3> MultIf(bool discriminant, ref T1 variable, ref T2 second, ref T3 third) => this;
+                public override void Else(Action action) { }
+                public override void Else(ref T1 first, ref T2 second, ref T3 third) { }
             }
         }
         /// <summary>
@@ -7759,11 +7771,11 @@ namespace Diagram
                 else
                     return new(handler);
             }
-            public void Else(ref T1 first, ref T2 second, ref T3 third, ref T4 fourth)
+            public virtual void Else(ref T1 first, ref T2 second, ref T3 third, ref T4 fourth)
             {
                 MultIf(true, ref first, ref second, ref third,ref fourth);
             }
-            public void Else(Action action)
+            public virtual void Else(Action action)
             {
                 action();
             }
@@ -7772,6 +7784,8 @@ namespace Diagram
             {
                 internal static readonly ClosingPipeUnit instance = new();
                 public override MultIfPipeUnit<T1, T2, T3, T4> MultIf(bool discriminant, ref T1 variable, ref T2 second, ref T3 third, ref T4 fourth) => this;
+                public override void Else(Action action) { }
+                public override void Else(ref T1 first, ref T2 second, ref T3 third, ref T4 fourth) { }
             }
         }
         /// <summary>

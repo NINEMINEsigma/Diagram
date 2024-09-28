@@ -481,10 +481,11 @@ namespace Diagram
     {
         public UnityEngine.Object target;
 
-        public ABObject(string package,string name)
+        public ABObject(string package, string name)
         {
-            using ToolFile file = new(name, false, false, false);
-            target = file.LoadAssetBundle(false).LoadAsset(name);
+            using ToolFile file = new(package, false, true, false);
+            var ab = file.LoadAssetBundle(true);
+            target = ab.LoadAsset(name);
         }
     }
 }

@@ -36,7 +36,7 @@ namespace Diagram.Serialization
             }
             return from.As<IVirtualBase>(out var vb) && FromBase(vb);
         }
-        public virtual bool FromBase([_In_]IVirtualBase vb) => false;
+        public virtual bool FromBase([_In_]IVirtualBase vb) => true;
         public virtual void FromGlobalConfig([_In_] IVirtualBase gvb) { }
 
         [_Init_]
@@ -80,6 +80,8 @@ namespace Diagram.Serialization
             get => m_GUID;
             private set
             {
+                if(m_GUIDSet.Contains(m_GUID))
+                    m_GUIDSet.Remove(m_GUID);
                 while (m_GUIDSet.Contains(value))
                     value++;
                 m_GUID = value;
@@ -88,7 +90,15 @@ namespace Diagram.Serialization
         }
         public VirtualData()
         {
-            this.GUID = this.GetMemoryAddress().ToInt64();
+            try
+            {
+                this.GUID = this.GetMemoryAddress().ToInt64();
+            }
+            catch(ArgumentException ex)
+            {
+                Debug.LogWarning($"{ex} \nis been throw");
+                this.GUID = (long)this.GetHashCode();
+            }
         }
     }
 }

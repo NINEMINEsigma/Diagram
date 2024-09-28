@@ -252,6 +252,7 @@ namespace Diagram
 
             private string symbol_name = null;
             private bool is_equals_define = false;
+            private LineWord right_ward = null;
 
             public override LineWord ResolveToBehaviour(LineScript core, LineWord next)
             {
@@ -261,55 +262,57 @@ namespace Diagram
                     is_equals_define = false;
                     return this;
                 }
-                else if (is_equals_define == false)
+                else if (next is SymbolWord.OperatorKeyWord.OperatorAssign)
                 {
-                    string symbol_name = this.symbol_name;
-                    this.symbol_name = null;
-                    if (next is SymbolWord.OperatorKeyWord.OperatorAssign eqaulword)
-                    {
-                        is_equals_define = true;
-                        return this;
-                    }
-                    else if (next is ReferenceSymbolWord symbol)
-                    {
-                        core.CreatedSymbols[symbol_name] = symbol;
-                    }
-                    else if (next is SourceValueWord svw)
-                    {
-                        if (Typen(svw.Source).Share(out var definedTypenAlias)!=null)
-                        {
-                            core.Typedefineds[symbol_name] = definedTypenAlias;
-                        }
-                        else if (svw is LiteralValueWord literal)
-                        {
-                            core.CreatedInstances[symbol_name] = literal.Source;
-                        }
-                        else if (svw is SymbolWord dsy)
-                        {
-                            core.CreatedSymbols[symbol_name] = dsy;
-                        }
-                        else
-                        {
-                            throw new ParseException($"Unknown Parse Way On: define({this.symbol_name}) {next}");
-                        }
-                    }
-                    else
-                    {
-                        throw new ParseException($"Unknown Parse Way On: define({this.symbol_name}) {next}");
-                    }
+                    is_equals_define = true;
                     return this;
                 }
-                else
+                else if (next == null)
                 {
-                    NewDefineUsingAssign(core, next, this.symbol_name);
-                    this.symbol_name = null;
+                    do
+                    {
+                        if (is_equals_define == false)
+                        {
+                            if (right_ward is ReferenceSymbolWord symbol)
+                            {
+                                core.CreatedSymbols[symbol_name] = symbol;
+                            }
+                            else if (right_ward is SourceValueWord svw)
+                            {
+                                if (svw is LiteralValueWord literal)
+                                {
+                                    core.CreatedInstances[symbol_name] = literal.Source;
+                                }
+                                else if (svw is SymbolWord dsy)
+                                {
+                                    core.CreatedSymbols[symbol_name] = dsy;
+                                }
+                            }
+                            else break;
+                        }
+                        else NewDefineUsingAssign(core, right_ward, this.symbol_name);
+                        this.symbol_name = null;
+                        this.right_ward = null;
+                    } while (false);
                     return next;
                 }
+                else if (right_ward == null)
+                {
+                    right_ward = next;
+                    return this;
+                }
+                this.symbol_name = null;
+                this.right_ward = null;
+                throw new ParseException($"Unknown Parse Way On: define({this.symbol_name}) {next}");
             }
 
             public static void NewDefineUsingAssign(LineScript core, LineWord next, string symbol_name)
             {
-                if (core.CreatedInstances.TryGetValue(next.As<SourceValueWord>().Source, out var obj) &&
+                if (next is SourceValueWord svw && Typen(svw.Source).Share(out var definedTypenAlias) != null)
+                {
+                    core.Typedefineds[symbol_name] = definedTypenAlias;
+                }
+                else if (core.CreatedInstances.TryGetValue(next.As<SourceValueWord>().Source, out var obj) &&
                     DiagramType.GetOrCreateDiagramType(obj.GetType()).Share(out var dtype).IsPrimitive &&
                     dtype.IsValueType && dtype.type != typeof(char))
                 {
@@ -362,7 +365,11 @@ namespace Diagram
                         }
                     }
                     str ??= T;
-                    if (str.TryComputef(out var value))
+                    if (str == "false" || str == "False")
+                        return false;
+                    else if (str == "true" || str == "True")
+                        return true;
+                    else if (str.TryComputef(out var value))
                         return value;
                     else
                         return str;
@@ -397,14 +404,15 @@ namespace Diagram
                     if (core.Typedefineds.ContainsKey(classname))
                         classname = core.Typedefineds[classname].FullName;
                     object[] constructorParamters = TransfromConstructorParametors(core);
-                    foreach (var assembly in Diagram.ReflectionExtension.GetAssemblies())
-                    {
-                        if (assembly.CreateInstance(classname, false, ReflectionExtension.DefaultBindingFlags, null, constructorParamters, null, null).Share(out var obj) != null)
-                        {
-                            core.CreatedInstances[name] = obj;
-                            break;
-                        }
-                    }
+                    //foreach (var assembly in Diagram.ReflectionExtension.GetAssemblies())
+                    //{
+                    //    if (assembly.CreateInstance(classname, false, ReflectionExtension.DefaultBindingFlags, null, constructorParamters, null, null).Share(out var obj) != null)
+                    //    {
+                    //        core.CreatedInstances[name] = obj;
+                    //        break;
+                    //    }
+                    //}
+                    core.CreatedInstances[name] = Activator.CreateInstance(Typen(classname), constructorParamters);
                     return next;
                 }
                 else return this;
@@ -585,8 +593,10 @@ namespace Diagram
 
                 void SetValue()
                 {
-                    object right_value = right_member == null ? core.CreatedInstances[right_symbol_name] : right_member.reflectedMember.GetValue(right_instance);
-                    if(member==null)
+                    object right_value = right_member == null
+                        ? (core.CreatedInstances.TryGetValue(right_symbol_name, out var endv) ? endv : right_symbol_name)
+                        : right_member.reflectedMember.GetValue(right_instance);
+                    if (member == null)
                     {
                         core.CreatedInstances[symbol_name] = right_value;
                     }

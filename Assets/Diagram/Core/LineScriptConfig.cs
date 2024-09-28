@@ -8,11 +8,17 @@ namespace Diagram
 {
     public class LineScriptConfig : MonoBehaviour
     {
+        public void DIE()
+        {
+            GameObject.Destroy(gameObject);
+        }
+
         public string LauncherPath => Path.Combine(ToolFile.userPath, "LineScripts", "Launcher.ls");
         public string LauncherDir => Path.GetDirectoryName(LauncherPath); 
 
         private void Start()
         {
+            GameObject.DontDestroyOnLoad(this);
             LineWord.WordPairs = new()
             {
                 { "using",new SystemKeyWord.using_Key()},
@@ -24,10 +30,11 @@ namespace Diagram
                 { "continue",new SystemKeyWord.continue_Key()},
                 { "define",new SystemKeyWord.define_Key()},
                 { "new",new SystemKeyWord.new_Key()},
-                {"include",new SystemKeyWord.include_Key() },
-                {"delete",new SystemKeyWord.delete_Key()},
-                {"call",new SystemKeyWord.call_key() },
-                {"end", new SystemKeyWord.end_key() }
+                { "include",new SystemKeyWord.include_Key() },
+                { "delete",new SystemKeyWord.delete_Key()},
+                { "call",new SystemKeyWord.call_key() },
+                { "end", new SystemKeyWord.end_key() },
+                { "set",new SystemKeyWord.set_key()}
             };
             StartCoroutine(Waiter());
 
@@ -40,7 +47,7 @@ namespace Diagram
                 using ToolFile file = new(LauncherPath, true, true, true);
                 if (file)
                 {
-                    LineScript core = new();
+                    LineScript core = new(("this", this));
                     core.Run(file.GetString(false, System.Text.Encoding.UTF8));
                 }
                 else
