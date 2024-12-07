@@ -1,0 +1,17 @@
+{
+    "name": "YoloTest",
+    "rootNamespace": "",
+    "references": [
+        "GUID:eda0cf66e49d5904fa04be4d479b53d3",
+        "GUID:dbffc15738ebe5c40a9626d5a2df3b69"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

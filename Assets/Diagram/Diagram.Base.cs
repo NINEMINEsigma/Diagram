@@ -24,6 +24,7 @@ using static Diagram.ReflectionExtension;
 using Debug = UnityEngine.Debug;
 using Quaternion = UnityEngine.Quaternion;
 using Vector3 = UnityEngine.Vector3;
+using Vector2 = UnityEngine.Vector2;
 
 namespace UnityEditor { }
 
@@ -7876,6 +7877,38 @@ namespace Diagram
 
 
         #endregion
+    }
+
+    public static class EasyVec
+    {
+        public enum MutiType
+        {
+            Add,Sub,Muti,Div
+        }
+
+        public static Vector2 Merge(this Vector2 self, Vector2 right, MutiType type = MutiType.Add)
+        {
+            return type switch
+            {
+                MutiType.Add => new(self.x + right.x, self.y + right.y),
+                MutiType.Sub => new(self.x - right.x, self.y - right.y),
+                MutiType.Muti => new(self.x * right.x, self.y * right.y),
+                MutiType.Div => new(self.x / right.x, self.y / right.y),
+                _ => throw new NotImplementedException()
+            };
+        }
+
+        public static Vector3 Merge(this Vector3 self, Vector3 right, MutiType type = MutiType.Add)
+        {
+            return type switch
+            {
+                MutiType.Add => new(self.x + right.x, self.y + right.y, self.z + right.z),
+                MutiType.Sub => new(self.x - right.x, self.y - right.y, self.z - right.z),
+                MutiType.Muti => new(self.x * right.x, self.y * right.y, self.z * right.z),
+                MutiType.Div => new(self.x / right.x, self.y / right.y, self.z / right.z),
+                _ => throw new NotImplementedException()
+            };
+        }
     }
 
     #endregion

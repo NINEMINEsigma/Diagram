@@ -10,12 +10,15 @@ namespace Diagram
     {
         [Header("Player Camera 3D")]
 #if ENABLE_INPUT_SYSTEM
+        [Tooltip("<target> Reset")]
         public bool IsResetCoveredInputAction = true;
 #endif
         const float k_MouseSensitivityMultiplier = 0.01f;
 
+        [Tooltip("<target> LookWithMouseUpdate")]
         public float mouseSensitivity = 100f;
 
+        [Tooltip("<player body> set default = transform.parent\n<target> PlayerBody")]
         [SerializeField] private Transform playerBody;
         public Transform PlayerBody
         {
@@ -26,11 +29,22 @@ namespace Diagram
                 return playerBody;
             }
         }
+        [Tooltip("<player head> set default = transform\n<target> PlayerHead")]
+        [SerializeField] private Transform playerHead;
+        public Transform PlayerHead
+        {
+            get
+            {
+                if (playerHead == null)
+                    playerHead = transform;
+                return playerHead;
+            }
+        }
 
         float xRotation = 0f;
 #if ENABLE_INPUT_SYSTEM
-        [SerializeField] InputAction movement;
-        [SerializeField] InputAction jump;
+        public InputAction movement;
+        public InputAction jump;
 #endif
 
         public override void Reset()
@@ -58,12 +72,12 @@ namespace Diagram
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 #if ENABLE_INPUT_SYSTEM
-
             movement.Enable();
             jump.Enable();
 #endif
         }
 
+        [Tooltip("<character controller> set default = PlayerBody.SeekComponent<CharacterController>()\n<target> MyCharacterController")]
         private CharacterController characterController;
         public CharacterController MyCharacterController
         {
@@ -74,26 +88,64 @@ namespace Diagram
                 return characterController;
             }
         }
-        public float speed = 12f;
-        public float gravity = -10f;
-        public float jumpHeight = 2f;
+        [Tooltip("<target> { Lateral movement speed , Jumping strength, Forward speed}")]
+        public Vector3 speed = new(0.7f, 2f, 1f);
+        [Tooltip("<target> Forward speed")]
+        public float dashSpeedMultiplier = 1.7f;
+        public float gravity = -9.8f;
 
+        [Tooltip("<foot> must set")]
         public Transform groundCheck;
+        [Tooltip("<target> PlayerMovementUpdate")]
         public float groundDistance = 0.4f;
         public LayerMask groundMask;
 
 
+#if UNITY_EDITOR
+        public Vector3 velocity;
+        public bool isGrounded;
+#else
         Vector3 velocity;
         bool isGrounded;
+#endif
 
 
         private void LookWithMouseUpdate()
         {
-            bool unlockPressed = false, lockPressed = false;
+            MouseMovement(out var unlockPressed, out var lockPressed, out var mouseX, out var mouseY);
+            if (unlockPressed)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+            if (lockPressed)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+            if (Cursor.lockState == CursorLockMode.Locked)
+            {
+                BodyAndHeadRotating(mouseX, mouseY);
+            }
+        }
 
+        private void BodyAndHeadRotating(float x, float y)
+        {
+            xRotation -= y;
+            xRotation = Mathf.Clamp(xRotation, -90f, 90f);
+
+            PlayerHead.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+
+            PlayerBody.Rotate(Vector3.up * x);
+        }
+
+        private void MouseMovement(out bool unlockPressed, out bool lockPressed, out float mouseX, out float mouseY)
+        {
+            unlockPressed = false;
+            lockPressed = false;
 #if ENABLE_INPUT_SYSTEM
-            float mouseX = 0, mouseY = 0;
-
+            mouseX = 0;
+            mouseY = 0;
             if (Mouse.current != null)
             {
                 var delta = Mouse.current.delta.ReadValue() / 15.0f;
@@ -121,28 +173,8 @@ namespace Diagram
         unlockPressed = Input.GetKeyDown(KeyCode.Escape);
         lockPressed = Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1);
 #endif
-
-            if (unlockPressed)
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
-            if (lockPressed)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
-
-            if (Cursor.lockState == CursorLockMode.Locked)
-            {
-                xRotation -= mouseY;
-                xRotation = Mathf.Clamp(xRotation, -90f, 90f);
-
-                transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
-
-                PlayerBody.Rotate(Vector3.up * mouseX);
-            }
         }
+
         private void PlayerMovementUpdate()
         {
             float x;
@@ -168,8 +200,19 @@ namespace Diagram
             }
 
             Vector3 move = transform.right * x + transform.forward * z;
+            Vector3 planeSpeed = speed;
+            float jumpHeight = planeSpeed.y;
+            planeSpeed.y = 0;
 
-            MyCharacterController.Move(move * speed * Time.deltaTime);
+            MyCharacterController.Move(Time.deltaTime * planeSpeed.Merge(move, EasyVec.MutiType.Muti));
+            if (Mathf.Approximately(x, 0))
+            {
+                velocity.x -= velocity.x / 2;
+            }
+            if (Mathf.Approximately(z, 0))
+            {
+                velocity.z -= velocity.z / 2;
+            }
 
             if (jumpPressed && isGrounded)
             {
@@ -178,7 +221,7 @@ namespace Diagram
 
             velocity.y += gravity * Time.deltaTime;
 
-            MyCharacterController.Move(velocity * Time.deltaTime);
+            MyCharacterController.Move(new Vector3(0, velocity.y, 0) * Time.deltaTime);
         }
 
         private void Update()
