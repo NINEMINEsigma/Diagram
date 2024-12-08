@@ -7912,6 +7912,23 @@ namespace Diagram
     }
 
     #endregion
+
+    namespace Timer
+    {
+   
+        public interface ITimer
+        {
+            public float time { get; }
+            public float deltaTime { get; }
+        }
+
+        public class UnityTime : ITimer
+        {
+            public float time => UnityEngine.Time.time;
+
+            public float deltaTime => UnityEngine.Time.deltaTime;
+        }
+    }
 }
 
 namespace Diagram

@@ -8,6 +8,8 @@ namespace Diagram
 {
     public class PlayerCamera3DBase : LineBehaviour
     {
+        public Timer.ITimer MyTimer = new Timer.UnityTime();
+
         [Header("Player Camera 3D")]
 #if ENABLE_INPUT_SYSTEM
         [Tooltip("<target> Reset")]
@@ -65,6 +67,13 @@ namespace Diagram
                 jump = new InputAction("PlayerJump", binding: "<Gamepad>/a");
                 jump.AddBinding("<Keyboard>/Space");
             }
+            ResetTimer();
+        }
+
+        [_Note_("<target> Reset")]
+        public virtual void ResetTimer()
+        {
+            MyTimer = new Timer.UnityTime();
         }
 
         void Start()
@@ -88,10 +97,13 @@ namespace Diagram
                 return characterController;
             }
         }
-        [Tooltip("<target> { Lateral movement speed , Jumping strength, Forward speed}")]
-        public Vector3 speed = new(0.7f, 2f, 1f);
+        //[Tooltip("<target> { Lateral movement speed , Jumping strength, Forward speed}")]
+        //public Vector3 speed = new(0.7f, 2f, 1f);
         [Tooltip("<target> Forward speed")]
         public float dashSpeedMultiplier = 1.7f;
+        [Tooltip("<target> Y jump")]
+        public float JumpIntensity = 1f;
+        [Tooltip("<target> PlayerMovementUpdate")]
         public float gravity = -9.8f;
 
         [Tooltip("<foot> must set")]
@@ -101,13 +113,17 @@ namespace Diagram
         public LayerMask groundMask;
 
 
-#if UNITY_EDITOR
-        public Vector3 velocity;
-        public bool isGrounded;
-#else
-        Vector3 velocity;
-        bool isGrounded;
-#endif
+        [SerializeField, Tooltip("<target> PlayerMovementUpdate")] Vector3 velocity = Vector3.zero;
+        [SerializeField, Tooltip("<target> PlayerMovementUpdate")] Vector3 acceleration = Vector3.zero;
+        [SerializeField, Tooltip("<target> PlayerMovementUpdate")] Vector3 decayAcceleration = new(0.1f, 0.0f, 0.1f);
+        [SerializeField, Tooltip("<target> PlayerMovementUpdate")] Vector3 maxVelocity = new(1, 1, 1);
+        [SerializeField, Tooltip("<target> PlayerMovementUpdate")] Vector3 maxAcceleration = new(1, 1, 1);
+        [SerializeField, Tooltip("<target> PlayerMovementUpdate")] float maxVelocityScalar = 10;
+        [SerializeField, Tooltip("<target> PlayerMovementUpdate")] bool isGrounded = false;
+        [Tooltip("<target> PlayerMovementUpdate")] public bool isDash = false;
+        
+        [Tooltip("<target> PlayerMovementUpdate")] public bool isLockMovement = false;
+        [Tooltip("<target> MouseMovement")] public bool isLockMouseLock = false;
 
 
         private void LookWithMouseUpdate()
@@ -143,6 +159,12 @@ namespace Diagram
         {
             unlockPressed = false;
             lockPressed = false;
+            mouseX = 0;
+            mouseY = 0;
+
+            if (isLockMouseLock)
+                return;
+
 #if ENABLE_INPUT_SYSTEM
             mouseX = 0;
             mouseY = 0;
@@ -177,51 +199,95 @@ namespace Diagram
 
         private void PlayerMovementUpdate()
         {
+            if (isLockMovement)
+                return;
+
             float x;
             float z;
-            bool jumpPressed = false;
+            float jumpPressed = 0;
 
 #if ENABLE_INPUT_SYSTEM
             var delta = movement.ReadValue<Vector2>();
             x = delta.x;
             z = delta.y;
-            jumpPressed = Mathf.Approximately(jump.ReadValue<float>(), 1);
+            Debug.Log((x, z));
+            jumpPressed = jump.ReadValue<float>();
 #else
         x = Input.GetAxis("Horizontal");
         z = Input.GetAxis("Vertical");
-        jumpPressed = Input.GetButtonDown("Jump");
+        jumpPressed = Input.GetButtonDown("Jump")?1:0;
 #endif
 
-            isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
-
-            if (isGrounded && velocity.y < 0)
+            this.isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
+            if (this.isGrounded && velocity.y < 0)
             {
-                velocity.y = -2f;
+                this.velocity.y = -2f;
+                this.acceleration.y = 0;
             }
 
-            Vector3 move = transform.right * x + transform.forward * z;
-            Vector3 planeSpeed = speed;
-            float jumpHeight = planeSpeed.y;
-            planeSpeed.y = 0;
-
-            MyCharacterController.Move(Time.deltaTime * planeSpeed.Merge(move, EasyVec.MutiType.Muti));
-            if (Mathf.Approximately(x, 0))
+            // Self Acceleration Update
+            this.acceleration +=
+                // The Acceleration of lateral movement
+                PlayerHead.right * x +
+                // The acceleration of forward movement
+                PlayerHead.forward * z * (this.isDash ? this.dashSpeedMultiplier : 1);
+            // Limit Acceleration
+            this.acceleration.x = Mathf.Clamp(this.acceleration.x, -this.maxAcceleration.x, this.maxAcceleration.x);
+            this.acceleration.y = Mathf.Clamp(this.acceleration.y, -this.maxAcceleration.y, this.maxAcceleration.y);
+            this.acceleration.z = Mathf.Clamp(this.acceleration.z, -this.maxAcceleration.z, this.maxAcceleration.z);
+            // Self Velocity Update
+            float deltaTime = this.MyTimer.deltaTime;
+            this.velocity +=
+                // From Acceleration * Timer Config
+                this.acceleration * deltaTime +
+                // Longitudinal velocity affected by gravity and jumps
+                Vector3.up * jumpPressed + deltaTime * this.gravity * Vector3.up;
+            // Limit Velocity
+            this.velocity.x = Mathf.Clamp(this.velocity.x, -this.maxVelocity.x, this.maxVelocity.x);
+            this.velocity.y = Mathf.Clamp(this.velocity.y, -this.maxVelocity.y, this.maxVelocity.y);
+            this.velocity.z = Mathf.Clamp(this.velocity.z, -this.maxVelocity.z, this.maxVelocity.z);
+            this.velocity = Vector3.ClampMagnitude(this.velocity, this.maxVelocityScalar);
+            // Tranform
+            MyCharacterController.Move(this.velocity * deltaTime);
+            // Decay Acceleration (Simulate Resistance)
+            this.acceleration.x += this.decayAcceleration.x * -this.velocity.x * deltaTime;
+            this.acceleration.z += this.decayAcceleration.z * -this.velocity.z * deltaTime;
+            if (Mathf.Abs(this.acceleration.x) < 1.5f * this.decayAcceleration.x && Mathf.Approximately(x, 0))
             {
-                velocity.x -= velocity.x / 2;
+                this.acceleration.x = 0;
+                this.velocity.x = 0;
             }
-            if (Mathf.Approximately(z, 0))
+            if (Mathf.Abs(this.acceleration.z) < 1.5f * this.decayAcceleration.z && Mathf.Approximately(z, 0))
             {
-                velocity.z -= velocity.z / 2;
+                this.acceleration.z = 0;
+                this.velocity.z = 0;
             }
 
-            if (jumpPressed && isGrounded)
-            {
-                velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-            }
 
-            velocity.y += gravity * Time.deltaTime;
 
-            MyCharacterController.Move(new Vector3(0, velocity.y, 0) * Time.deltaTime);
+            //Vector3 move = transform.right * x + transform.forward * z;
+            //Vector3 planeSpeed = speed;
+            //float jumpHeight = planeSpeed.y;
+            //planeSpeed.y = 0;
+            //
+            //MyCharacterController.Move(Time.deltaTime * planeSpeed.Merge(move, EasyVec.MutiType.Muti));
+            //if (Mathf.Approximately(x, 0))
+            //{
+            //    velocity.x -= velocity.x / 2;
+            //}
+            //if (Mathf.Approximately(z, 0))
+            //{
+            //    velocity.z -= velocity.z / 2;
+            //}
+            //
+            //if (jumpPressed && isGrounded)
+            //{
+            //    velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            //}
+            //
+            //velocity.y += gravity * Time.deltaTime;
+            //
+            //MyCharacterController.Move(new Vector3(0, velocity.y, 0) * Time.deltaTime);
         }
 
         private void Update()
