@@ -144,7 +144,7 @@ namespace Game
             {
                 if (Keyboard.current[Key.LeftCtrl].isPressed && Keyboard.current[Key.E].isPressed)
                 {
-                    MyNote.transform.localScale = MyNote.transform.localScale.AddX(Keyboard.current[Key.LeftAlt].isPressed ? -1 : 1);
+                    MyNote.transform.localScale = Diagram.VectorExtension.AddX(MyNote.transform.localScale, Keyboard.current[Key.LeftAlt].isPressed ? -1 : 1);
                     WriteLineScript();
                 }
             }

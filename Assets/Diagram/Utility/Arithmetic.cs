@@ -1,14 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Reflection;
-using Unity.VisualScripting;
-using UnityEditor;
 using UnityEngine;
 using static Diagram.Arithmetic.ArithmeticException;
-using static UnityEngine.GraphicsBuffer;
-using static UnityEngine.ParticleSystem;
 
 namespace Diagram.Arithmetic
 {
@@ -1140,6 +1134,16 @@ namespace Diagram.Arithmetic
                 result[i] = (int)(ec.Evaluate(i / (float)length) * (to - self) + self);
             }
             return result;
+        }
+
+        public static float Power2(this float self)
+        {
+            return self * self;
+        }
+
+        public static int Power2(this int self)
+        {
+            return self * self;
         }
     }
 

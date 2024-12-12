@@ -66,8 +66,8 @@ namespace Game
                         Vector3 start = this.Pointers[i].transform.position, end = this.Pointers[i + 1].transform.position;
                         linkingCurve.AllPoints.Add(new(start, true));
                         Vector3 dirt = (end - start).normalized;
-                        linkingCurve.AllPoints.Add(new(start.AddZ(dirt.z), false));
-                        linkingCurve.AllPoints.Add(new(end.AddZ(-dirt.z), false));
+                        linkingCurve.AllPoints.Add(new(Diagram.VectorExtension.AddZ(start, dirt.z), false));
+                        linkingCurve.AllPoints.Add(new(Diagram.VectorExtension.AddZ(end, -dirt.z), false));
                     }
                     linkingCurve.AllPoints.Add(new(this.Pointers[^1].transform.position, true));
                     this.MeshSourcePairs = linkingCurve.GenerateCurveMeshData(BuildNormalType.JustDirection, Vector3.right, this.BodySizeCurve);
